@@ -7,7 +7,5 @@
     </content>
     <orderEntry type="jdk" jdkName="1.8_152" jdkType="JavaSDK" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="module" module-name="console-menu" />
-    <orderEntry type="module" module-name="api" />
   </component>
 </module>
