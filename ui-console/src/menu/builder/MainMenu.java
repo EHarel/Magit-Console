@@ -6,10 +6,27 @@ import menu.MenuPage;
 import menu.action.*;
 
 public class MainMenu {
-    private static MenuManager graphMenuManager;
+    private static String username = "Administrator";
+    private MenuManager menuManager;
     private static MenuPage mainMenu = new MenuPage("Main Menu", null);
 
-    public static MenuManager initMenu() {
+    public MainMenu() {
+        menuManager = initMenu();
+    }
+
+    public void runMenu() {
+        if (menuManager != null) menuManager.RunMenu();
+    }
+
+    public static void setUsername(String newName) {
+        username = newName;
+    }
+
+    public static String getUsername() {
+        return username;
+    }
+
+    private MenuManager initMenu() {
         setMenu_UsernameUpdate();           // 1
         setMenu_CreateNewRepo();
         setMenu_RepoFileLoad();             // 2
@@ -24,62 +41,64 @@ public class MainMenu {
         setMenu_ShowActiveBranchHistory();  // 11
         setMenu_Exit();                     // 12
 
-        graphMenuManager = new MenuManager(mainMenu, false);
+        menuManager = new MenuManager(mainMenu, false);
 
-        return graphMenuManager;
+        return menuManager;
     }
 
-    private static void setMenu_UsernameUpdate() {
+    private void setMenu_UsernameUpdate() {
         String menuName = "Update username";
         new MenuAction(menuName, mainMenu, new UpdateUsername());
     }
 
-    private static void setMenu_CreateNewRepo() {
+    private void setMenu_CreateNewRepo() {
         String menuName = "Create a new repository";
         new MenuAction(menuName, mainMenu, new CreateRepo());
     }
 
-    private static void setMenu_RepoFileLoad() {
+    private void setMenu_RepoFileLoad() {
 
     }
 
-    private static void setMenu_SwitchRepo() {
+    private void setMenu_SwitchRepo() {
 
     }
 
-    private static void setMenu_ShowCurrCommitFiles() {
+    private void setMenu_ShowCurrCommitFiles() {
 
     }
 
-    private static void setMenu_ShowWCStatus() {
+    private void setMenu_ShowWCStatus() {
+        String menuName = "Print Working Copy";
+        new MenuAction(menuName, mainMenu, new ShowWC());
+    }
+
+    private void setMenu_Commit() {
+        String menuName = "Commit";
+        new MenuAction(menuName, mainMenu, new Commit());
+    }
+
+    private void setMenu_ShowBranches() {
 
     }
 
-    private static void setMenu_Commit() {
+    private void setMenu_CreateBranch() {
 
     }
 
-    private static void setMenu_ShowBranches() {
+    private void setMenu_DeleteBranch() {
 
     }
 
-    private static void setMenu_CreateBranch() {
+    private void setMenu_CheckoutHeadBranch() {
 
     }
 
-    private static void setMenu_DeleteBranch() {
+    private void setMenu_ShowActiveBranchHistory() {
 
     }
 
-    private static void setMenu_CheckoutHeadBranch() {
-
-    }
-
-    private static void setMenu_ShowActiveBranchHistory() {
-
-    }
-
-    private static void setMenu_Exit() {
+    private void setMenu_Exit() {
 
     }
 }

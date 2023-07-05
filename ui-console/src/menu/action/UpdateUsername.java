@@ -1,6 +1,7 @@
 package menu.action;
 
 import menu.DoesAction;
+import menu.builder.MainMenu;
 
 import java.util.Scanner;
 
@@ -23,5 +24,7 @@ public class UpdateUsername implements DoesAction {
                 validInput = true;
             }
         } while (!validInput);
+
+        MainMenu.setUsername(userInput);
     }
 }
