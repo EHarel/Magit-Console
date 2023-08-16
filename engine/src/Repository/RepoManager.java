@@ -3,8 +3,10 @@ package Repository;
 import DataObjects.Commit;
 import DataObjects.TreeNode;
 import DataObjects.files.RepoFile;
+import errors.codes.ErrorCodes;
 import utils.Utils;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -12,48 +14,52 @@ import java.util.Collection;
 import java.util.LinkedList;
 
 public class RepoManager {
-    public static final int ERROR_INVALID_PATH = 1;
-    public static final int ERROR_EXISTING_REPO = 2;
-    public static final int ERROR_UNKNOWN = 3;
+//    public static final int ERROR_UNKNOWN = 1;
+//    public static final int ERROR_INVALID_PATH = 2;
+//    public static final int ERROR_EXISTING_REPO = 3;
+//    public static final int ERROR_EXISTING_BRANCH = 4;
+//    public static final int ERROR_ILLEGAL_BRANCH_NAME = 5;
 
     private static final String MAGIT_DIR = ".magit";
 
     /**
-     * @param path
-     * @return (*) 0 - repo created.
-     * (*) 1 - invalid path.
-     * (*) 2 - repo exists.
+     * @param repoPath
+     * @return Error codes:
+     * (*) 0 SUCCESS - repo created.
+     * (*) INVALID PATH - a problem with the path string.
+     * (*) REPO EXISTS - repo exists.
      */
-    public static int createRepo(String path) {
-        int resCode = 0;
+    public static int createRepo(String repoPath) {
+        int resCode = ErrorCodes.SUCCESS;
 
-        if (!isValidPath(path)) {
-            return ERROR_INVALID_PATH;
+        if (!isValidPath(repoPath)) {
+            return ErrorCodes.ERROR_INVALID_PATH;
         }
 
-        if (isExistingRepo(path)) {
-            return ERROR_EXISTING_REPO;
+        if (isExistingRepo(repoPath)) {
+            return ErrorCodes.ERROR_EXISTING_REPO;
         }
+
+        String primaryBranchName = "main";
 
         // Create directory
-        resCode = createDirectories(path);
-        createBranch("main", path);
-        changeBranch(path, "main");
+        resCode = createDirectories(repoPath);
+        createHeadBranch(repoPath, primaryBranchName);
+        String headPath = FileManager.getHeadPath(repoPath);
+        FileManager.writeToFile(headPath, primaryBranchName, false);
 
         return resCode;
     }
 
-    private static void changeBranch(String mainDirPath, String branchName) {
-        // Switch the HEAD file to point to branchName
-        // Find branch file through branch file
+    public static int checkout(String repoPath, String branchName) {
+        String branchCommitSha1 = FileManager.getBranchSha1(repoPath, branchName);
+        Commit branchCommit = FileManager.getCommit(repoPath, branchCommitSha1); // TODO not done
+        FileManager.deleteWC(repoPath);
+        FileManager.unfoldCommit(repoPath, branchCommit);
+        String headPath = FileManager.getHeadPath(repoPath);
+        FileManager.writeToFile(headPath, branchName, false);
 
-        String branchCommitSha1 = FileManager.getBranchSha1(mainDirPath, branchName);
-        Commit branchCommit = FileManager.getCommit(mainDirPath, branchCommitSha1);
-
-        // Go to the objects folder
-        // Find the commit
-        // Delete WC
-        // Spread out the commit files
+        return 0; // FIXME: change to exceptions
     }
 
     // TODO
@@ -111,28 +117,81 @@ public class RepoManager {
             resCode = 0;
         } catch (IOException e) {
             e.printStackTrace();
-            resCode = ERROR_UNKNOWN;
+            resCode = ErrorCodes.ERROR_UNKNOWN;
         }
 
         return resCode;
     }
 
-    private static void createBranch(String name, String mainDirPath) {
-        String branchesPath = mainDirPath + ".magit/branches/";
-        String branchPath = branchesPath + name;
+    /**
+     * When creating the main branch for the first time
+     * the process is slightly different than just creating a new branch.
+     * The main branch at first doesn't have a previous commit to point to.
+     * @param repoPath
+     * @param primaryBranchName
+     */
+    public static int createHeadBranch(String repoPath, String primaryBranchName) {
+
+        // FIXME: duplicate code with createBranch
+        int resCode = 0;
+
+        if (!FileManager.isValidPath(repoPath)) return ErrorCodes.ERROR_INVALID_PATH;
+
+        String branchesPath = repoPath + "/.magit/branches/";
+        String branchPath = branchesPath + primaryBranchName;
+
+        if (new File(branchPath).isFile()) return ErrorCodes.ERROR_EXISTING_BRANCH;
 
         try {
             Files.createFile(Paths.get(branchPath));
+            resCode = 0;
         } catch (IOException e) {
             e.printStackTrace();
+            resCode = ErrorCodes.ERROR_UNKNOWN;
         }
+
+        return resCode;
     }
 
-    public static int commit(String path, String creator, String msg) {
+    /**
+     * @param repoPath
+     * @param branchName
+     * @return Result code. Potential errors:
+     * (*) Illegal Branch Name
+     * (*) Invalid Path
+     * (*) Existing Branch
+     * (*) Unknown
+     */
+    public static int createBranch(String repoPath, String branchName) {
         int resCode = 0;
 
-        if (!isValidPath(path)) {
-            return ERROR_INVALID_PATH;
+        if (branchName.contains(" ")) return ErrorCodes.ERROR_ILLEGAL_BRANCH_NAME;
+        if (!FileManager.isValidPath(repoPath)) return ErrorCodes.ERROR_INVALID_PATH;
+
+        String branchesPath = repoPath + "/.magit/branches/";
+        String branchPath = branchesPath + branchName;
+
+        if (new File(branchPath).isFile()) return ErrorCodes.ERROR_EXISTING_BRANCH;
+
+        try {
+            Files.createFile(Paths.get(branchPath));
+            String headBranchName = FileManager.getHeadBranchName(repoPath);
+            String headBranchCommitSha1 = FileManager.getBranchSha1(repoPath, headBranchName);
+            FileManager.writeToFile(branchPath, headBranchCommitSha1, false);
+            resCode = 0;
+        } catch (IOException e) {
+            e.printStackTrace();
+            resCode = ErrorCodes.ERROR_UNKNOWN;
+        }
+
+        return resCode;
+    }
+
+    public static int commit(String repoPath, String creator, String msg) {
+        int resCode = 0;
+
+        if (!isValidPath(repoPath)) {
+            return ErrorCodes.ERROR_INVALID_PATH;
         }
 
         /**
@@ -154,11 +213,13 @@ public class RepoManager {
 //        String commitSHA1 = getSHA1FromBranch(branch);
 //        File commitFile = getCommit(commitSHA1);
 
-        TreeNode wcRoot = WorkingCopy.getWCTree(path);
+        TreeNode wcRoot = WorkingCopy.getWCTree(repoPath);
         Commit commit = createCommitData(wcRoot, creator, msg);
 
         Collection<RepoFile> changedFiles = getChangedFiles(wcRoot);
-        zip(commit, changedFiles, path);
+        zip(commit, changedFiles, repoPath);
+
+        FileManager.advanceHeadBranch(repoPath, commit.getSha1());
 
         return resCode;
     }
@@ -211,7 +272,10 @@ public class RepoManager {
         commit.setMainDirSha1(wcRoot.getRepoFile().getId());
 
         // TODO: commit.setMainAncestorSha1();
+        commit.setMainAncestorSha1("Temp primary ancestor");
+
         // TODO: commit.setSecondaryAncestorSha1();
+        commit.setSecondaryAncestorSha1("Temp secondary ancestor");
 
         commit.setMsg(msg);
 
@@ -219,7 +283,6 @@ public class RepoManager {
         commit.setDate(date);
 
         commit.setCreator(creator);
-
 
         return commit;
     }

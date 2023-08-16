@@ -13,9 +13,9 @@ public class CreateRepo implements DoesAction {
     public void DoAction() {
         System.out.println("Enter path of new repository: ");
         String pathStr = getPathStr();
-        if (pathStr == backOption) return;
+        if (pathStr.equals(backOption)) return;
 
-        int resCode = RepoAPI.create(pathStr);
+        int resCode = RepoAPI.createRepo(pathStr);
 
         String msg;
         switch (resCode) {

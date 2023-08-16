@@ -83,7 +83,8 @@ public class MainMenu {
     }
 
     private void setMenu_CreateBranch() {
-
+        String menuName = "Create branch";
+        new MenuAction(menuName, mainMenu, new CreateBranch());
     }
 
     private void setMenu_DeleteBranch() {
@@ -91,7 +92,8 @@ public class MainMenu {
     }
 
     private void setMenu_CheckoutHeadBranch() {
-
+        String menuName = "Checkout (switch branch)";
+        new MenuAction(menuName, mainMenu, new Checkout());
     }
 
     private void setMenu_ShowActiveBranchHistory() {
