@@ -228,13 +228,13 @@ public class RepoManager {
         String objectsDirPath = getObjectsDirPath(mainDir);
         String sha1 = commit.getSha1();
         String commitContent = commit.toString();
-        String commitZipPath = objectsDirPath + "/" + sha1;
+        String commitZipPath = objectsDirPath + "/" + sha1 + ".zip";
         FileManager.zip(commitZipPath, sha1, commitContent);
 
         for (RepoFile fd : changedFiles) {
             String fileSha1 = fd.getId();
             String zipName = fileSha1 + ".zip";
-            String fileName = fd.getName() + ".txt";
+            String fileName = fd.getName();
             String content = fd.getContent();
             String zipPath = objectsDirPath + "/" + zipName;
             FileManager.zip(zipPath, fileName, content);

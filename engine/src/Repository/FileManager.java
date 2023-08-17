@@ -30,6 +30,7 @@ public class FileManager {
     public static void unzip(String zippedFilePath, String destinationPath) {
         try
         {
+            zippedFilePath = checkAndAddZipSuffix(zippedFilePath);
             int BUFFER = 2048;
             File file = new File(zippedFilePath);
 
@@ -81,6 +82,19 @@ public class FileManager {
             e.printStackTrace();
             System.out.println(e.getMessage());
         }
+    }
+
+    /**
+     * This function checks if the file path ends with ".zip", and adds the suffix if not.
+     * @param filePath
+     */
+    private static String checkAndAddZipSuffix(String filePath) {
+        int length = filePath.length();
+        if (! filePath.substring(length - 4).equals(".zip")) {
+            filePath = filePath + ".zip";
+        }
+
+        return filePath;
     }
 
     public static void zip(String zipPath, String fileName, String content) {
@@ -198,7 +212,7 @@ public class FileManager {
     }
 
     public static Commit getCommit(String mainDir, String commitSha1) {
-        String commitPath = mainDir + "/.magit/objects/" + commitSha1;
+        String commitPath = mainDir + "/.magit/objects/" + commitSha1 + ".zip";
         String commitString = FileManager.readZipContent(commitPath);
         Commit commit = new Commit(commitString);
 
@@ -211,10 +225,7 @@ public class FileManager {
     private static String readZipContent(String filePath) {
         if (filePath == null) return null;
 
-        int length = filePath.length();
-        if (! filePath.substring(length - 4).equals(".zip")) {
-            filePath = filePath + ".zip";
-        }
+        filePath = checkAndAddZipSuffix(filePath);
 
         String fileContent = null;
 
@@ -297,8 +308,15 @@ public class FileManager {
                 FileManager.unzip(filePath, destDirPath);
             } else {
                 String dirPath = destDirPath + "/" + fileName;
-                new File(dirPath);
-                unzipIntoDir(objectsPath, dirPath, fileSha1);
+
+                try {
+                    Files.createDirectories(Paths.get(dirPath));
+    //                new File(dirPath);
+                    unzipIntoDir(objectsPath, dirPath, fileSha1);
+                    // TODO: move try-catch area
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }

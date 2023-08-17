@@ -20,7 +20,7 @@ public class Checkout implements DoesAction {
         // TODO: find a proper way to communicate all the issues
         switch (resCode) {
             case 0:
-                msg = "Branch created.";
+                msg = "Successfully changed to branch '" + branchName + "'.";
                 break;
             case 1:
                 msg = "Invalid path.";
