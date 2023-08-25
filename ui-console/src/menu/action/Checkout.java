@@ -16,7 +16,7 @@ public class Checkout implements DoesAction {
         String resMsg;
         try {
             RepoAPI.checkout(branchName);
-            resMsg = "Branch " + branchName + "checked out.";
+            resMsg = "Branch " + branchName + " checked out.";
         } catch (RepoNotSetException e) {
             resMsg = "ERROR! No repository set.";
         } catch (NoSuchBranchException e) {

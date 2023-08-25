@@ -9,6 +9,14 @@ import java.io.IOException;
 public abstract class RepoAPI {
     private static RepoManager repoManager = new RepoManager();
 
+    public static String getLoadedRepoPath() {
+        return repoManager.getRepoPath();
+    }
+
+    public static String getActiveBranch() {
+        return repoManager.getActiveBranch();
+    }
+
     public static void changeRepository(String newRepoPath) throws NoSuchRepoException, InvalidPathException {
         repoManager.changeRepository(newRepoPath);
     }

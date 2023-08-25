@@ -5,12 +5,14 @@ import menu.MenuAction;
 import menu.MenuManager;
 import menu.MenuPage;
 import menu.action.*;
+import menu.builder.interfaces.BranchNameGenerator;
+import menu.builder.interfaces.RepoNameGenerator;
 import menu.utils.Utils;
 
 public class MainMenu {
     private static String username = "Administrator";
     private MenuManager menuManager;
-    private static MenuPage mainMenu = new MenuPage("Main Menu", null);
+    private static MenuPage mainMenu;
 
     public MainMenu() {
         menuManager = initMenu();
@@ -29,6 +31,9 @@ public class MainMenu {
     }
 
     private MenuManager initMenu() {
+        mainMenu = new MenuPage("Main Menu", null, new RepoNameGenerator());
+         mainMenu.addMsgGenerator(new BranchNameGenerator());
+
         setMenu_UsernameUpdate();           // 1
         setMenu_CreateNewRepo();
         setMenu_RepoFileLoad();             // 2
