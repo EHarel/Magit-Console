@@ -1,9 +1,11 @@
 package menu.builder;
 
+import magit.RepoAPI;
 import menu.MenuAction;
 import menu.MenuManager;
 import menu.MenuPage;
 import menu.action.*;
+import menu.utils.Utils;
 
 public class MainMenu {
     private static String username = "Administrator";
@@ -61,7 +63,8 @@ public class MainMenu {
     }
 
     private void setMenu_SwitchRepo() {
-
+        String menuName = "Load repository";
+        new MenuAction(menuName, mainMenu, new LoadRepository());
     }
 
     private void setMenu_ShowCurrCommitFiles() {

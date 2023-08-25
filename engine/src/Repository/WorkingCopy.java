@@ -20,6 +20,11 @@ public class WorkingCopy {
 
     // TODO: delete eventually, a method made for development
     public static void showWCTree(String wcPath) {
+        if (wcPath == null) {
+            System.out.println("No repository set.");
+            return;
+        }
+
         TreeNode root = getTreeRec(wcPath);
 
         printTree(root);
@@ -69,26 +74,9 @@ public class WorkingCopy {
 
         return fileData;
     }
-//    private static RepoFile getFolderData(TreeNode tn, File file) {
-//        if (tn == null || file == null || !file.isDirectory()) return null;
-//
-//        // FileData fileData = new FileData();
-//        Folder fileData = new Folder();
-//
-//
-//        fileData.setName(file.getName());
-//        // fileData.setFileType(FileData.FileType.FOLDER);
-//
-//        String childrenData = getChildrenData(tn);
-//        String folderDataSha1 = DigestUtils.sha1Hex(childrenData);
-//
-//        fileData.setId(folderDataSha1);
-//
-//        return fileData;
-//    }
 
     private static String getChildrenData(TreeNode treeNode) {
-        if (treeNode == null || treeNode.getChildren().size() == 0) return null;
+        if (treeNode == null || treeNode.getChildren().isEmpty()) return null;
 
         StringBuilder dataBuilder = new StringBuilder();
 
@@ -96,12 +84,10 @@ public class WorkingCopy {
             // String fileStr = tn.getRepoFile().toString();
             String fileStr = tn.getRepoFile().getMetaData();
 
-            dataBuilder.append(fileStr + System.lineSeparator());
+            dataBuilder.append(fileStr).append(System.lineSeparator());
         }
 
-        String data = dataBuilder.toString();
-
-        return data;
+        return dataBuilder.toString();
     }
 
     private static RepoFile getBlobData(File file) {
@@ -119,19 +105,9 @@ public class WorkingCopy {
         }
 
         String fileContent = stringBuilder.toString();
-
-
-        // String sha1Str = DigestUtils.sha1Hex(fileContent);
-
         Blob treeFileData = new Blob();
         treeFileData.setName(file.getName());
         treeFileData.setContent(fileContent);
-        // treeFileData.setId(sha1Str);
-        // treeFileData.setFileType(FileData.FileType.BLOB);
-
-//                System.out.println("File content:\n");
-//                System.out.println(fileContent);
-//                System.out.println("SHA1: " + sha1Str);
 
         return treeFileData;
     }
@@ -143,10 +119,10 @@ public class WorkingCopy {
     }
 
     private static void printTreeRec(TreeNode root, int level) {
-        String indent = "";
+        StringBuilder indent = new StringBuilder();
         for (int i = 0; i < level; i++) {
             for (int j = 0; j < 3; j++) {
-                indent = indent + " ";
+                indent.append(" ");
             }
         }
 

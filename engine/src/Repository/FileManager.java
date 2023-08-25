@@ -5,10 +5,7 @@ import DataObjects.files.RepoFile;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.Enumeration;
 import java.util.Scanner;
 import java.util.stream.Stream;
@@ -17,19 +14,29 @@ import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 public class FileManager {
+
+    /*****************************************************
+     ******************** CONSTANTS **********************
+     *****************************************************/
     public static final String MAGIT_DIR = "_magit";
     public static final String BRANCHES_DIR = "branches";
     public static final String OBJECTS_DIR = "objects";
     public static final String HEAD_FILE = "HEAD";
 
     public static boolean isValidPath(String path) {
-        try {
-            Paths.get(path);
-        } catch (InvalidPathException ex) {
+        if (path == null || path.trim().isEmpty()) {
             return false;
         }
 
-        return true;
+        boolean res = false;
+        try {
+            Paths.get(path);
+            res = true;
+        } catch (InvalidPathException ex) {
+            res = false;
+        }
+
+        return res;
     }
 
     public static void unzip(String zippedFilePath, String destinationPath) {
@@ -38,11 +45,8 @@ public class FileManager {
             zippedFilePath = checkAndAddZipSuffix(zippedFilePath);
             int BUFFER = 2048;
             File file = new File(zippedFilePath);
-
             ZipFile zip = new ZipFile(file);
             String newPath = destinationPath;
-
-//            new File(newPath).mkdir();
             Enumeration zipFileEntries = zip.entries();
 
             // Process each entry
@@ -51,13 +55,7 @@ public class FileManager {
                 // grab a zip file entry
                 ZipEntry entry = (ZipEntry) zipFileEntries.nextElement();
                 String currentEntry = entry.getName();
-
                 File destFile = new File(newPath, currentEntry);
-                //destFile = new File(newPath, destFile.getName());
-//                File destinationParent = destFile.getParentFile();
-
-                // create the parent directory structure if needed
-//                destinationParent.mkdirs();
 
                 if (!entry.isDirectory())
                 {
@@ -124,20 +122,22 @@ public class FileManager {
      * @param repoPath
      * @return the name of the branch as saved in the HEAD file.
      */
-    public static String getHeadBranchName(String repoPath) {
+    public static String getHeadBranchName(String repoPath) throws NoSuchFileException {
         // TODO: check path validity
         if (repoPath == null) return null;
 
         String headFilePath = FileManager.getHeadPath(repoPath);
-        String headBranchName = getFileContent(headFilePath);
 
-        return headBranchName;
+        return getFileContent(headFilePath);
     }
 
-    public static String getFileContent(String filePathStr) {
+    public static String getFileContent(String filePathStr) throws NoSuchFileException {
         if (filePathStr == null) return null;
 
         Path filePath = Paths.get(filePathStr);
+
+        if ( ! Files.exists(filePath)) throw new NoSuchFileException(filePathStr);
+
         StringBuilder contentBuilder = new StringBuilder();
 
         try (Stream<String> stream = Files.lines(filePath, StandardCharsets.UTF_8)) {
@@ -163,7 +163,7 @@ public class FileManager {
      * @param mainDir
      * @param branchName
      */
-    public static String getBranchSha1(String mainDir, String branchName) {
+    public static String getBranchSha1(String mainDir, String branchName) throws NoSuchFileException {
         String branchesPath = FileManager.getBranchesPath(mainDir);
         String branchPath = branchesPath + branchName;
 
@@ -180,13 +180,6 @@ public class FileManager {
             System.out.println(e.getMessage());
         }
     }
-//    public static void writeToFile(String filePath, String content) throws IOException {
-//        try (Writer out1 = new BufferedWriter(
-//                new OutputStreamWriter(
-//                        new FileOutputStream(filePath), "UTF-8"))) {
-//            out1.write(content);
-//        }
-//    }
 
     public static void deleteWC(String mainDirPath) {
         File dirFile = new File(mainDirPath);
@@ -221,9 +214,8 @@ public class FileManager {
         String objPath = FileManager.getObjectsPath(mainDir);
         String commitPath = objPath + commitSha1 + ".zip";
         String commitString = FileManager.readZipContent(commitPath);
-        Commit commit = new Commit(commitString);
 
-        return commit;
+        return new Commit(commitString);
     }
 
     /**
@@ -239,7 +231,6 @@ public class FileManager {
         // Read zipped commit string
         try {
             ZipFile zipFile = new ZipFile(filePath);
-            if (zipFile == null) return null;
 
             ZipEntry zipEntry = zipFile.entries().nextElement();
             if (zipEntry == null) return null;
@@ -254,16 +245,6 @@ public class FileManager {
             e.printStackTrace();
         }
 
-//        //read file into stream, try-with-resources
-//        try (Stream<String> stream = Files.lines(Paths.get(filePath))) {
-//
-//            stream.forEach(System.out::println);
-//
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-
-
         return fileContent;
     }
 
@@ -274,16 +255,12 @@ public class FileManager {
      * @param branchCommit
      */
     public static void unfoldCommit(String mainDirPath, Commit branchCommit) {
-
         /*
         We don't need the whole object created for unfolding the commit,
         Just the name of the file, its SHA1 to find the zipped object, and its type.
          */
         String mainDirSha1 = branchCommit.getMainDirSha1();
-//        String objectsPath = mainDirPath + "/.magit/objects/";
         String objectsPath = FileManager.getObjectsPath(mainDirPath);
-//        String filePath = mainDirPath + "/.magit/objects/" + mainDirSha1;
-
         unzipIntoDir(objectsPath, mainDirPath, mainDirSha1);
     }
 
@@ -329,45 +306,34 @@ public class FileManager {
         }
     }
 
-//    /**
-//     * Updates the content of the HEAD file to a new branch,
-//     * given in branchName.
-//     */
-//    public static void updateHead(String mainDirPath, String branchName) {
-//        String headPath = FileManager.getHeadPath(mainDirPath);
-//
-//        try {
-//            FileWriter writerObj = new FileWriter(headPath, false);
-//            writerObj.write(branchName);
-//            writerObj.close();
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//            System.out.println(e.getMessage());
-//        }
-//    }        try {
-//            FileWriter writerObj = new FileWriter(branchPath, false);
-//            writerObj.write(content);
-//            writerObj.close();
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//            System.out.println(e.getMessage());
-//        }
+    // TODO
+    public static boolean isExistingRepo(String path) {
+        String fullPath = appendToPath(path, FileManager.MAGIT_DIR);
 
-    public static String getHeadPath(String mainDirPath) {
-//        String path = mainDirPath + "/.magit/branches/HEAD";
-//        return path;
-
-        return FileManager.getBranchesPath(mainDirPath) + File.separator + HEAD_FILE;
+        return Files.exists(Paths.get(fullPath));
     }
 
-    public static void advanceHeadBranch(String mainDirPath, String commitSha1) {
+    public static String appendToPath(String path, String addition) {
+        path = path.trim();
+        char lastChar = path.charAt(path.length() - 1);
+        if (lastChar != '/' && lastChar != '\\') {
+            path = path + File.separator;
+        }
+
+        return path + addition;
+    }
+
+    public static void advanceHeadBranch(String mainDirPath, String commitSha1) throws NoSuchFileException {
         String headBranchName = FileManager.getHeadBranchName(mainDirPath);
-
         String filePath = FileManager.getBranchesPath(mainDirPath) + File.separator + headBranchName;
-
-//                mainDirPath + "/.magit/branches/" + headBranchName;
         FileManager.writeToFile(filePath, commitSha1, false);
     }
+
+
+
+    /*****************************************************
+                        BASIC PATH GETTERS
+     *****************************************************/
 
     public static String getMagitPath(String mainDirPath) {
         return mainDirPath +
@@ -388,5 +354,11 @@ public class FileManager {
                 File.separator +
                 OBJECTS_DIR +
                 File.separator;
+    }
+
+    public static String getHeadPath(String mainDirPath) {
+        return FileManager.getBranchesPath(mainDirPath) +
+                File.separator +
+                HEAD_FILE;
     }
 }

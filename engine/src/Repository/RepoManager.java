@@ -4,17 +4,44 @@ import DataObjects.Commit;
 import DataObjects.TreeNode;
 import DataObjects.files.RepoFile;
 import errors.codes.ErrorCodes;
+import errors.exceptions.*;
 import utils.Utils;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.LinkedList;
 
 public class RepoManager {
+    private String repoPath = null;
+
+    public String getRepoPath() { return repoPath; }
+
+    public void changeRepository(String newRepoPath) throws InvalidPathException, NoSuchRepoException {
+        if (!FileManager.isValidPath(newRepoPath)) {
+            throw new InvalidPathException(newRepoPath);
+        }
+
+        if (!FileManager.isExistingRepo(newRepoPath)) {
+            String msg = "The directory " + newRepoPath + " is not a MAGit repository.";
+            throw new NoSuchRepoException(msg);
+        }
+
+        this.repoPath = newRepoPath;
+    }
+
+    /**
+     * This function checks if a repository is currently set. If not, it throws an exception.
+     */
+    private void checkAndThrowSetRepo() throws RepoNotSetException {
+        if (repoPath == null) throw new RepoNotSetException("No MAGit repository is set.");
+    }
+
+
     /**
      * @param repoPath
      * @return Error codes:
@@ -22,29 +49,22 @@ public class RepoManager {
      * (*) INVALID PATH - a problem with the path string.
      * (*) REPO EXISTS - repo exists.
      */
-    public static int createRepo(String repoPath) {
-        int resCode = ErrorCodes.SUCCESS;
-
-        if (!isValidPath(repoPath)) {
-            return ErrorCodes.ERROR_INVALID_PATH;
-        }
-
-        if (isExistingRepo(repoPath)) {
-            return ErrorCodes.ERROR_EXISTING_REPO;
-        }
+    public void createRepo(String repoPath) throws InvalidPathException, ExistingRepoException, IOException {
+        if (!FileManager.isValidPath(repoPath)) throw new InvalidPathException(null);
+        if (FileManager.isExistingRepo(repoPath)) throw new ExistingRepoException(null);
 
         String primaryBranchName = "main";
 
         // Create directory
-        resCode = createDirectories(repoPath);
+        createDirectories(repoPath);
         createHeadBranch(repoPath, primaryBranchName);
         String headPath = FileManager.getHeadPath(repoPath);
         FileManager.writeToFile(headPath, primaryBranchName, false);
-
-        return resCode;
     }
 
-    public static int checkout(String repoPath, String branchName) {
+    public void checkout(String branchName) throws RepoNotSetException, UnknownError, NoSuchBranchException {
+        checkAndThrowSetRepo();
+
         try {
             String branchCommitSha1 = FileManager.getBranchSha1(repoPath, branchName);
             Commit branchCommit = FileManager.getCommit(repoPath, branchCommitSha1); // TODO not done
@@ -52,74 +72,27 @@ public class RepoManager {
             FileManager.unfoldCommit(repoPath, branchCommit);
             String headPath = FileManager.getHeadPath(repoPath);
             FileManager.writeToFile(headPath, branchName, false);
+        } catch (NoSuchFileException e) {
+            throw new NoSuchBranchException(null);
         } catch (Exception e) {
             e.printStackTrace();
-            return ErrorCodes.ERROR_UNKNOWN;
+            throw new UnknownError();
         }
-
-        return 0; // FIXME: change to exceptions
     }
 
-    // TODO
-    private static boolean isValidPath(String path) {
-        if (path == null || path.trim().isEmpty()) {
-            return false;
-        }
+    private void createDirectories(String path) throws IOException {
+        String fullPath = FileManager.appendToPath(path, FileManager.MAGIT_DIR);
 
-        boolean res;
-        try {
-            Paths.get(path);
-            res = true;
-        } catch (Exception e) {
-            res = false;
-        }
+        Path p1 = Files.createDirectories(Paths.get(fullPath));
 
-        return res;
-    }
+        String objPath = FileManager.appendToPath(fullPath, "objects");
+        Path p2 = Files.createDirectories(Paths.get(objPath));
 
-    // TODO
-    private static boolean isExistingRepo(String path) {
-        String fullPath = appendToPath(path, FileManager.MAGIT_DIR);
+        String branchesPath = FileManager.appendToPath(fullPath, "branches");
+        Path p3 = Files.createDirectories(Paths.get(branchesPath));
 
-        return Files.exists(Paths.get(fullPath));
-    }
-
-    private static String appendToPath(String path, String addition) {
-        path = path.trim();
-        char lastChar = path.charAt(path.length() - 1);
-        if (lastChar != '/' && lastChar != '\\') {
-            // path = path + "/";
-            path = path + File.separator;
-        }
-
-        String fullPath = path + addition;
-
-        return fullPath;
-    }
-
-    private static int createDirectories(String path) {
-        int resCode;
-
-        String fullPath = appendToPath(path, FileManager.MAGIT_DIR);
-        try {
-            Path p1 = Files.createDirectories(Paths.get(fullPath));
-
-            String objPath = appendToPath(fullPath, "objects");
-            Path p2 = Files.createDirectories(Paths.get(objPath));
-
-            String branchesPath = appendToPath(fullPath, "branches");
-            Path p3 = Files.createDirectories(Paths.get(branchesPath));
-
-            String headPath = appendToPath(branchesPath, "HEAD");
-            Path p4 = Files.createFile(Paths.get(headPath));
-
-            resCode = 0;
-        } catch (IOException e) {
-            e.printStackTrace();
-            resCode = ErrorCodes.ERROR_UNKNOWN;
-        }
-
-        return resCode;
+        String headPath = FileManager.appendToPath(branchesPath, "HEAD");
+        Path p4 = Files.createFile(Paths.get(headPath));
     }
 
     /**
@@ -130,7 +103,7 @@ public class RepoManager {
      * @param repoPath
      * @param primaryBranchName
      */
-    public static int createHeadBranch(String repoPath, String primaryBranchName) {
+    public int createHeadBranch(String repoPath, String primaryBranchName) {
 
         // FIXME: duplicate code with createBranch
         int resCode = 0;
@@ -154,7 +127,6 @@ public class RepoManager {
     }
 
     /**
-     * @param repoPath
      * @param branchName
      * @return Result code. Potential errors:
      * (*) Illegal Branch Name
@@ -162,45 +134,26 @@ public class RepoManager {
      * (*) Existing Branch
      * (*) Unknown
      */
-    public static int createBranch(String repoPath, String branchName) {
-        int resCode = 0;
+    public void createBranch(String branchName) throws RepoNotSetException, IllegalNameException, ExistingBranchException, UnknownError {
+        checkAndThrowSetRepo();
+        if (branchName.contains(" ")) throw new IllegalNameException("Name cannot contain spaces.");
 
-        if (branchName.contains(" ")) return ErrorCodes.ERROR_ILLEGAL_BRANCH_NAME;
-        if (!FileManager.isValidPath(repoPath)) return ErrorCodes.ERROR_INVALID_PATH;
-
-        StringBuilder sb = new StringBuilder();
-        sb.append(repoPath)
-                .append(File.separator)
-                .append(FileManager.MAGIT_DIR)
-                .append(File.separator)
-                .append(FileManager.BRANCHES_DIR)
-                .append(File.separator)
-                .append(branchName);
-        String branchPath = sb.toString();
-//        String branchPath = branchesPath + branchName;
-
-        if (new File(branchPath).isFile()) return ErrorCodes.ERROR_EXISTING_BRANCH;
+        String branchPath = FileManager.getBranchesPath(this.repoPath) + branchName;
+        if (new File(branchPath).isFile()) throw new ExistingBranchException(null);
 
         try {
             Files.createFile(Paths.get(branchPath));
             String headBranchName = FileManager.getHeadBranchName(repoPath);
             String headBranchCommitSha1 = FileManager.getBranchSha1(repoPath, headBranchName);
             FileManager.writeToFile(branchPath, headBranchCommitSha1, false);
-            resCode = 0;
         } catch (IOException e) {
             e.printStackTrace();
-            resCode = ErrorCodes.ERROR_UNKNOWN;
+            throw new UnknownError();
         }
-
-        return resCode;
     }
 
-    public static int commit(String repoPath, String creator, String msg) {
-        int resCode = 0;
-
-        if (!isValidPath(repoPath)) {
-            return ErrorCodes.ERROR_INVALID_PATH;
-        }
+    public void commit(String creator, String msg) throws RepoNotSetException, UnknownError {
+        checkAndThrowSetRepo();
 
         /**
          * SCAN WC:
@@ -215,28 +168,19 @@ public class RepoManager {
          *
          */
 
-
-//        String headBranch = getHeadBranch();
-//        File branchFile = getBranch(headBranch);
-//        String commitSHA1 = getSHA1FromBranch(branch);
-//        File commitFile = getCommit(commitSHA1);
         try {
-
             TreeNode wcRoot = WorkingCopy.getWCTree(repoPath);
             Commit commit = createCommitData(wcRoot, creator, msg);
-
             Collection<RepoFile> changedFiles = getChangedFiles(wcRoot);
             zip(commit, changedFiles, repoPath);
-
             FileManager.advanceHeadBranch(repoPath, commit.getSha1());
         } catch (Exception e) {
             e.printStackTrace();
+            throw new UnknownError();
         }
-
-        return resCode;
     }
 
-    private static void zip(Commit commit, Collection<RepoFile> changedFiles, String mainDir) {
+    private void zip(Commit commit, Collection<RepoFile> changedFiles, String mainDir) {
         String objectsDirPath = FileManager.getObjectsPath(mainDir);
         String sha1 = commit.getSha1();
         String commitContent = commit.toString();
@@ -253,7 +197,7 @@ public class RepoManager {
         }
     }
 
-    private static Collection<RepoFile> getChangedFiles(TreeNode wcRoot) {
+    private Collection<RepoFile> getChangedFiles(TreeNode wcRoot) {
         Collection<RepoFile> changedFiles = new LinkedList<>();
 
         // TODO:
@@ -268,7 +212,7 @@ public class RepoManager {
         return changedFiles;
     }
 
-    private static void addToList(TreeNode treeNode, Collection<RepoFile> changedFiles) {
+    private void addToList(TreeNode treeNode, Collection<RepoFile> changedFiles) {
         RepoFile repoFile = treeNode.getRepoFile();
         changedFiles.add(repoFile);
 
@@ -278,7 +222,7 @@ public class RepoManager {
     }
 
 
-    private static Commit createCommitData(TreeNode wcRoot, String creator, String msg) {
+    private Commit createCommitData(TreeNode wcRoot, String creator, String msg) {
         Commit commit = new Commit();
 
         commit.setMainDirSha1(wcRoot.getRepoFile().getId());
