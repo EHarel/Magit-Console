@@ -1,6 +1,6 @@
 package DataObjects;
 
-import org.apache.commons.codec.digest.DigestUtils;
+// import org.apache.commons.codec.digest.DigestUtils;
 import utils.Utils;
 
 import java.io.Serializable;
@@ -89,7 +89,7 @@ public class Commit implements Serializable {
 
     public String getSha1() {
         String commitStr = this.toString();
-        String sha1Sstr = DigestUtils.sha1Hex(commitStr);
+        String sha1Sstr = Utils.getSha1(commitStr);
 
         return sha1Sstr;
     }

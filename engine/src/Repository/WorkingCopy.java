@@ -5,7 +5,7 @@ import DataObjects.TreeNode;
 import DataObjects.files.Blob;
 import DataObjects.files.Folder;
 import DataObjects.files.RepoFile;
-import org.apache.commons.codec.digest.DigestUtils;
+/// import org.apache.commons.codec.digest.DigestUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,9 +40,9 @@ public class WorkingCopy {
 
         if (file.isFile()) {
             fileData = getBlobData(file);
-        } else if (file.isDirectory() && !file.getName().equals(".magit")) {
+        } else if (file.isDirectory() && !file.getName().equals(FileManager.MAGIT_DIR)) {
             for (File childFile : file.listFiles()) {
-                if (childFile.getName().equals(".magit")) continue;
+                if (childFile.isHidden() || childFile.getName().equals(FileManager.MAGIT_DIR)) continue;
 
                 TreeNode childNode = getTreeRec(childFile.getPath()); // Recursive call
                 childNode.setParent(tn);
@@ -96,7 +96,7 @@ public class WorkingCopy {
             // String fileStr = tn.getRepoFile().toString();
             String fileStr = tn.getRepoFile().getMetaData();
 
-            dataBuilder.append(fileStr + "\n");
+            dataBuilder.append(fileStr + System.lineSeparator());
         }
 
         String data = dataBuilder.toString();
@@ -112,7 +112,7 @@ public class WorkingCopy {
         StringBuilder stringBuilder = new StringBuilder();
         Path filePath = Paths.get(file.getPath());
         try (Stream<String> stream = Files.lines(filePath, StandardCharsets.UTF_8)) {
-            stream.forEach(s -> stringBuilder.append(s).append("\n"));
+            stream.forEach(s -> stringBuilder.append(s).append(System.lineSeparator()));
         } catch (IOException e) {
             //handle exception
             // TODO

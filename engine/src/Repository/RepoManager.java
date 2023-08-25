@@ -9,19 +9,12 @@ import utils.Utils;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.LinkedList;
 
 public class RepoManager {
-//    public static final int ERROR_UNKNOWN = 1;
-//    public static final int ERROR_INVALID_PATH = 2;
-//    public static final int ERROR_EXISTING_REPO = 3;
-//    public static final int ERROR_EXISTING_BRANCH = 4;
-//    public static final int ERROR_ILLEGAL_BRANCH_NAME = 5;
-
-    private static final String MAGIT_DIR = ".magit";
-
     /**
      * @param repoPath
      * @return Error codes:
@@ -52,12 +45,17 @@ public class RepoManager {
     }
 
     public static int checkout(String repoPath, String branchName) {
-        String branchCommitSha1 = FileManager.getBranchSha1(repoPath, branchName);
-        Commit branchCommit = FileManager.getCommit(repoPath, branchCommitSha1); // TODO not done
-        FileManager.deleteWC(repoPath);
-        FileManager.unfoldCommit(repoPath, branchCommit);
-        String headPath = FileManager.getHeadPath(repoPath);
-        FileManager.writeToFile(headPath, branchName, false);
+        try {
+            String branchCommitSha1 = FileManager.getBranchSha1(repoPath, branchName);
+            Commit branchCommit = FileManager.getCommit(repoPath, branchCommitSha1); // TODO not done
+            FileManager.deleteWC(repoPath);
+            FileManager.unfoldCommit(repoPath, branchCommit);
+            String headPath = FileManager.getHeadPath(repoPath);
+            FileManager.writeToFile(headPath, branchName, false);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ErrorCodes.ERROR_UNKNOWN;
+        }
 
         return 0; // FIXME: change to exceptions
     }
@@ -81,7 +79,7 @@ public class RepoManager {
 
     // TODO
     private static boolean isExistingRepo(String path) {
-        String fullPath = appendToPath(path, MAGIT_DIR);
+        String fullPath = appendToPath(path, FileManager.MAGIT_DIR);
 
         return Files.exists(Paths.get(fullPath));
     }
@@ -90,7 +88,8 @@ public class RepoManager {
         path = path.trim();
         char lastChar = path.charAt(path.length() - 1);
         if (lastChar != '/' && lastChar != '\\') {
-            path = path + "\\";
+            // path = path + "/";
+            path = path + File.separator;
         }
 
         String fullPath = path + addition;
@@ -101,18 +100,18 @@ public class RepoManager {
     private static int createDirectories(String path) {
         int resCode;
 
-        String fullPath = appendToPath(path, MAGIT_DIR);
+        String fullPath = appendToPath(path, FileManager.MAGIT_DIR);
         try {
-            Files.createDirectories(Paths.get(fullPath));
+            Path p1 = Files.createDirectories(Paths.get(fullPath));
 
             String objPath = appendToPath(fullPath, "objects");
-            Files.createDirectories(Paths.get(objPath));
+            Path p2 = Files.createDirectories(Paths.get(objPath));
 
             String branchesPath = appendToPath(fullPath, "branches");
-            Files.createDirectories(Paths.get(branchesPath));
+            Path p3 = Files.createDirectories(Paths.get(branchesPath));
 
             String headPath = appendToPath(branchesPath, "HEAD");
-            Files.createFile(Paths.get(headPath));
+            Path p4 = Files.createFile(Paths.get(headPath));
 
             resCode = 0;
         } catch (IOException e) {
@@ -127,6 +126,7 @@ public class RepoManager {
      * When creating the main branch for the first time
      * the process is slightly different than just creating a new branch.
      * The main branch at first doesn't have a previous commit to point to.
+     *
      * @param repoPath
      * @param primaryBranchName
      */
@@ -137,7 +137,7 @@ public class RepoManager {
 
         if (!FileManager.isValidPath(repoPath)) return ErrorCodes.ERROR_INVALID_PATH;
 
-        String branchesPath = repoPath + "/.magit/branches/";
+        String branchesPath = FileManager.getBranchesPath(repoPath);
         String branchPath = branchesPath + primaryBranchName;
 
         if (new File(branchPath).isFile()) return ErrorCodes.ERROR_EXISTING_BRANCH;
@@ -168,8 +168,16 @@ public class RepoManager {
         if (branchName.contains(" ")) return ErrorCodes.ERROR_ILLEGAL_BRANCH_NAME;
         if (!FileManager.isValidPath(repoPath)) return ErrorCodes.ERROR_INVALID_PATH;
 
-        String branchesPath = repoPath + "/.magit/branches/";
-        String branchPath = branchesPath + branchName;
+        StringBuilder sb = new StringBuilder();
+        sb.append(repoPath)
+                .append(File.separator)
+                .append(FileManager.MAGIT_DIR)
+                .append(File.separator)
+                .append(FileManager.BRANCHES_DIR)
+                .append(File.separator)
+                .append(branchName);
+        String branchPath = sb.toString();
+//        String branchPath = branchesPath + branchName;
 
         if (new File(branchPath).isFile()) return ErrorCodes.ERROR_EXISTING_BRANCH;
 
@@ -212,23 +220,27 @@ public class RepoManager {
 //        File branchFile = getBranch(headBranch);
 //        String commitSHA1 = getSHA1FromBranch(branch);
 //        File commitFile = getCommit(commitSHA1);
+        try {
 
-        TreeNode wcRoot = WorkingCopy.getWCTree(repoPath);
-        Commit commit = createCommitData(wcRoot, creator, msg);
+            TreeNode wcRoot = WorkingCopy.getWCTree(repoPath);
+            Commit commit = createCommitData(wcRoot, creator, msg);
 
-        Collection<RepoFile> changedFiles = getChangedFiles(wcRoot);
-        zip(commit, changedFiles, repoPath);
+            Collection<RepoFile> changedFiles = getChangedFiles(wcRoot);
+            zip(commit, changedFiles, repoPath);
 
-        FileManager.advanceHeadBranch(repoPath, commit.getSha1());
+            FileManager.advanceHeadBranch(repoPath, commit.getSha1());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         return resCode;
     }
 
     private static void zip(Commit commit, Collection<RepoFile> changedFiles, String mainDir) {
-        String objectsDirPath = getObjectsDirPath(mainDir);
+        String objectsDirPath = FileManager.getObjectsPath(mainDir);
         String sha1 = commit.getSha1();
         String commitContent = commit.toString();
-        String commitZipPath = objectsDirPath + "/" + sha1 + ".zip";
+        String commitZipPath = objectsDirPath + File.separator + sha1 + ".zip";
         FileManager.zip(commitZipPath, sha1, commitContent);
 
         for (RepoFile fd : changedFiles) {
@@ -236,7 +248,7 @@ public class RepoManager {
             String zipName = fileSha1 + ".zip";
             String fileName = fd.getName();
             String content = fd.getContent();
-            String zipPath = objectsDirPath + "/" + zipName;
+            String zipPath = objectsDirPath + File.separator + zipName;
             FileManager.zip(zipPath, fileName, content);
         }
     }
@@ -285,11 +297,5 @@ public class RepoManager {
         commit.setCreator(creator);
 
         return commit;
-    }
-
-    private static String getObjectsDirPath(String mainDirPath) {
-        String objPath = mainDirPath + "/.magit/objects";
-
-        return objPath;
     }
 }

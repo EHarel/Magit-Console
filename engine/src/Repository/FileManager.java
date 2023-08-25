@@ -17,6 +17,11 @@ import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 public class FileManager {
+    public static final String MAGIT_DIR = "_magit";
+    public static final String BRANCHES_DIR = "branches";
+    public static final String OBJECTS_DIR = "objects";
+    public static final String HEAD_FILE = "HEAD";
+
     public static boolean isValidPath(String path) {
         try {
             Paths.get(path);
@@ -136,7 +141,7 @@ public class FileManager {
         StringBuilder contentBuilder = new StringBuilder();
 
         try (Stream<String> stream = Files.lines(filePath, StandardCharsets.UTF_8)) {
-            stream.forEach(s -> contentBuilder.append(s).append("\n"));
+            stream.forEach(s -> contentBuilder.append(s).append(System.lineSeparator()));
         } catch (IOException e) {
             // TODO handle exception
         }
@@ -145,7 +150,7 @@ public class FileManager {
 
         int length = fileContent.length();
 
-        if (fileContent.endsWith("\n")) {
+        if (fileContent.endsWith(System.lineSeparator())) {
             fileContent = fileContent.substring(0, length - 1);
         }
 
@@ -159,9 +164,10 @@ public class FileManager {
      * @param branchName
      */
     public static String getBranchSha1(String mainDir, String branchName) {
-        String branchesPath = mainDir + "/.magit/branches/" + branchName;
+        String branchesPath = FileManager.getBranchesPath(mainDir);
+        String branchPath = branchesPath + branchName;
 
-        return getFileContent(branchesPath);
+        return getFileContent(branchPath);
     }
 
     public static void writeToFile(String filePath, String content, boolean append) {
@@ -186,7 +192,7 @@ public class FileManager {
         File dirFile = new File(mainDirPath);
 
         for (File file : dirFile.listFiles()) {
-            if (file.isDirectory() && file.getName().equals(".magit")) {
+            if (file.isDirectory() && file.getName().equals(FileManager.MAGIT_DIR)) {
                 continue;
             }
 
@@ -212,7 +218,8 @@ public class FileManager {
     }
 
     public static Commit getCommit(String mainDir, String commitSha1) {
-        String commitPath = mainDir + "/.magit/objects/" + commitSha1 + ".zip";
+        String objPath = FileManager.getObjectsPath(mainDir);
+        String commitPath = objPath + commitSha1 + ".zip";
         String commitString = FileManager.readZipContent(commitPath);
         Commit commit = new Commit(commitString);
 
@@ -273,7 +280,8 @@ public class FileManager {
         Just the name of the file, its SHA1 to find the zipped object, and its type.
          */
         String mainDirSha1 = branchCommit.getMainDirSha1();
-        String objectsPath = mainDirPath + "/.magit/objects/";
+//        String objectsPath = mainDirPath + "/.magit/objects/";
+        String objectsPath = FileManager.getObjectsPath(mainDirPath);
 //        String filePath = mainDirPath + "/.magit/objects/" + mainDirSha1;
 
         unzipIntoDir(objectsPath, mainDirPath, mainDirSha1);
@@ -307,7 +315,7 @@ public class FileManager {
                 String filePath = objectsPath + fileSha1;
                 FileManager.unzip(filePath, destDirPath);
             } else {
-                String dirPath = destDirPath + "/" + fileName;
+                String dirPath = destDirPath + File.separator + fileName;
 
                 try {
                     Files.createDirectories(Paths.get(dirPath));
@@ -346,15 +354,39 @@ public class FileManager {
 //        }
 
     public static String getHeadPath(String mainDirPath) {
-        String path = mainDirPath + "/.magit/branches/HEAD";
+//        String path = mainDirPath + "/.magit/branches/HEAD";
+//        return path;
 
-        return path;
+        return FileManager.getBranchesPath(mainDirPath) + File.separator + HEAD_FILE;
     }
 
     public static void advanceHeadBranch(String mainDirPath, String commitSha1) {
         String headBranchName = FileManager.getHeadBranchName(mainDirPath);
 
-        String filePath = mainDirPath + "/.magit/branches/" + headBranchName;
+        String filePath = FileManager.getBranchesPath(mainDirPath) + File.separator + headBranchName;
+
+//                mainDirPath + "/.magit/branches/" + headBranchName;
         FileManager.writeToFile(filePath, commitSha1, false);
+    }
+
+    public static String getMagitPath(String mainDirPath) {
+        return mainDirPath +
+                File.separator +
+                MAGIT_DIR +
+                File.separator;
+    }
+
+    public static String getBranchesPath(String mainDirPath) {
+        return getMagitPath(mainDirPath) +
+                File.separator +
+                BRANCHES_DIR +
+                File.separator;
+    }
+
+    public static String getObjectsPath(String mainDirPath) {
+        return getMagitPath(mainDirPath) +
+                File.separator +
+                OBJECTS_DIR +
+                File.separator;
     }
 }
