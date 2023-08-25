@@ -8,5 +8,6 @@
     <orderEntry type="jdk" jdkName="1.8_152" jdkType="JavaSDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="engine" />
+    <orderEntry type="module" module-name="shared" />
   </component>
 </module>
