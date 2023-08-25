@@ -1,5 +1,7 @@
 package menu.utils;
 
+import utils.SharedUtils;
+
 import java.util.Scanner;
 
 public abstract class Utils {
@@ -32,8 +34,7 @@ public abstract class Utils {
         return userInput;
     }
 
-    // TODO:
-    public static boolean isValidPath(String path) {
-        return true;
+    public static boolean isValidFilePath(String pathStr) {
+        return SharedUtils.isValidFilePath(pathStr);
     }
 }

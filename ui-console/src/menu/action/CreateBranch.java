@@ -1,5 +1,6 @@
 package menu.action;
 
+import errors.exceptions.*;
 import magit.RepoAPI;
 import menu.DoesAction;
 import menu.utils.Utils;
@@ -7,34 +8,23 @@ import menu.utils.Utils;
 public class CreateBranch implements DoesAction {
     @Override
     public void DoAction() {
-        String msg = "Enter repository path:";
-        String repoPath = Utils.getInput(msg, false);
-        if (repoPath == null) return;
-
-        msg = "Enter branch name:";
+        String msg = "Enter branch name:";
         String branchName = Utils.getInput(msg, false);
         if (branchName == null) return;
 
-        int resCode = RepoAPI.createBranch(repoPath, branchName);
-
-
-
-        // TODO: find a proper way to communicate all the issues
-        switch (resCode) {
-            case 0:
-                msg = "Branch created.";
-                break;
-            case 1:
-                msg = "Invalid path, repo not created.";
-                break;
-            case 2:
-                msg = "Repo already exists.";
-                break;
-            default:
-                msg = "Unknown issue.";
-                break;
+        String resMsg;
+        try {
+            RepoAPI.createBranch(branchName);
+            resMsg = "Branch created.";
+        } catch (ExistingBranchException e) {
+            resMsg = "ERROR! Branch already exists.";
+        } catch (IllegalNameException e) {
+            resMsg = "ERROR! Invalid name. " + e.getMessage();
+        } catch (RepoNotSetException e) {
+            resMsg = "ERROR! Repository not yet set.";
         }
 
-        System.out.println(msg + "\n");
+        System.out.println();
+        System.out.println(resMsg);
     }
 }
