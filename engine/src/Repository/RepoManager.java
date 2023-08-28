@@ -242,4 +242,12 @@ public class RepoManager {
 
         return commit;
     }
+
+    public String getActiveBranch() {
+        try {
+            return FileManager.getHeadBranchName(repoPath);
+        } catch (NoSuchFileException e) {
+            return null;
+        }
+    }
 }
