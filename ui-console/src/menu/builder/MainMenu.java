@@ -1,13 +1,11 @@
 package menu.builder;
 
-import magit.RepoAPI;
 import menu.MenuAction;
 import menu.MenuManager;
 import menu.MenuPage;
 import menu.action.*;
 import menu.builder.interfaces.BranchNameGenerator;
 import menu.builder.interfaces.RepoNameGenerator;
-import menu.utils.Utils;
 
 public class MainMenu {
     private static String username = "Administrator";
@@ -39,7 +37,8 @@ public class MainMenu {
         setMenu_RepoFileLoad();             // 2
         setMenu_SwitchRepo();               // 3
         setMenu_ShowCurrCommitFiles();      // 4
-        setMenu_ShowWCStatus();             // 5
+        setMenu_ShowRepository();           // 5
+        setMenu_ShowWCStatus();
         setMenu_Commit();                   // 6
         setMenu_ShowBranches();             // 7
         setMenu_CreateBranch();             // 8
@@ -76,9 +75,14 @@ public class MainMenu {
 
     }
 
+    private void setMenu_ShowRepository() {
+        String menuName = "Print repository files";
+        new MenuAction(menuName, mainMenu, new ShowRepoFileTree());
+    }
+
     private void setMenu_ShowWCStatus() {
-        String menuName = "Print Working Copy";
-        new MenuAction(menuName, mainMenu, new ShowWC());
+        String menuName = "Print working copy status";
+        new MenuAction(menuName, mainMenu, new ShowWorkingCopy());
     }
 
     private void setMenu_Commit() {

@@ -1,10 +1,12 @@
 package magit;
 
+import dto.TreeNode;
 import Repository.RepoManager;
-import Repository.WorkingCopy;
+import dto.files.RepoFile;
 import errors.exceptions.*;
 
 import java.io.IOException;
+import java.util.Collection;
 
 public abstract class RepoAPI {
     private static RepoManager repoManager = new RepoManager();
@@ -37,8 +39,21 @@ public abstract class RepoAPI {
         repoManager.commit(creator, msg);
     }
 
-    public static void showWC() {
-        String repoPath = repoManager.getRepoPath();
-        WorkingCopy.showWCTree(repoPath);
+    /**
+     *
+     * @return null if no repository is set.
+     */
+    public static TreeNode getRepoFileTree() {
+        return repoManager.getRepoFileTree();
+    }
+
+    /**
+     * Returns all the changed files in working copy.
+     *      (*) New files.
+     *      (*) Modified files.
+     *      (*) Deleted files.
+     */
+    public static Collection<RepoFile> getWorkingCopy() {
+        return repoManager.getWorkingCopy();
     }
 }

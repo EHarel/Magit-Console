@@ -4,6 +4,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.UUID;
 
 public abstract class Utils {
     public static String getCurrDate() {
@@ -14,7 +15,11 @@ public abstract class Utils {
         return dateStr;
     }
 
-    public static String getSha1(String str) {
-        return DigestUtils.sha1Hex(str);
+    public static String getSha1(String data) {
+        return SharedUtils.getSha1(data);
+    }
+
+    public static String generateUniqueId() {
+        return UUID.randomUUID().toString();
     }
 }

@@ -1,9 +1,9 @@
 package Repository;
 
 import DataObjects.Commit;
-import DataObjects.TreeNode;
-import DataObjects.files.RepoFile;
-import errors.codes.ErrorCodes;
+import dto.TreeNode;
+import dto.files.MetaData;
+import dto.files.RepoFile;
 import errors.exceptions.*;
 import utils.Utils;
 
@@ -13,13 +13,24 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedList;
+import java.util.HashMap;
 
 public class RepoManager {
-    private String repoPath = null;
+    private String repoPath;
+    private WorkingCopy workingCopy;
+    private FileManager fileManager;
 
-    public String getRepoPath() { return repoPath; }
+    public RepoManager() {
+        repoPath = null;
+        workingCopy = new WorkingCopy();
+        fileManager = new FileManager();
+    }
+
+    public String getRepoPath() {
+        return repoPath;
+    }
 
     public void changeRepository(String newRepoPath) throws InvalidPathException, NoSuchRepoException {
         if (!FileManager.isValidPath(newRepoPath)) {
@@ -31,46 +42,37 @@ public class RepoManager {
             throw new NoSuchRepoException(msg);
         }
 
-        this.repoPath = newRepoPath;
+        repoPath = newRepoPath;
+        workingCopy.setRepoPath(newRepoPath);
+        fileManager.setRepoPath(newRepoPath);
     }
 
     /**
      * This function checks if a repository is currently set. If not, it throws an exception.
      */
-    private void checkAndThrowSetRepo() throws RepoNotSetException {
+    private void checkAndThrowUnsetRepo() throws RepoNotSetException {
         if (repoPath == null) throw new RepoNotSetException("No MAGit repository is set.");
     }
 
-
-    /**
-     * @param repoPath
-     * @return Error codes:
-     * (*) 0 SUCCESS - repo created.
-     * (*) INVALID PATH - a problem with the path string.
-     * (*) REPO EXISTS - repo exists.
-     */
     public void createRepo(String repoPath) throws InvalidPathException, ExistingRepoException, IOException {
         if (!FileManager.isValidPath(repoPath)) throw new InvalidPathException(null);
         if (FileManager.isExistingRepo(repoPath)) throw new ExistingRepoException(null);
 
-        String primaryBranchName = "main";
-
-        // Create directory
         createDirectories(repoPath);
-        createHeadBranch(repoPath, primaryBranchName);
-        String headPath = FileManager.getHeadPath(repoPath);
-        FileManager.writeToFile(headPath, primaryBranchName, false);
+        createHeadBranch(repoPath, FileManager.PRIMARY_BRANCH);
+        String headPath = fileManager.getHeadFilePath();
+        FileManager.writeToFile(headPath, FileManager.PRIMARY_BRANCH, false);
     }
 
     public void checkout(String branchName) throws RepoNotSetException, UnknownError, NoSuchBranchException {
-        checkAndThrowSetRepo();
+        checkAndThrowUnsetRepo();
 
         try {
-            String branchCommitSha1 = FileManager.getBranchSha1(repoPath, branchName);
-            Commit branchCommit = FileManager.getCommit(repoPath, branchCommitSha1); // TODO not done
+            String branchCommitSha1 = fileManager.getBranchSha1(branchName);
+            Commit branchCommit = fileManager.getCommit(branchCommitSha1); // TODO not done
             FileManager.deleteWC(repoPath);
-            FileManager.unfoldCommit(repoPath, branchCommit);
-            String headPath = FileManager.getHeadPath(repoPath);
+            fileManager.unfoldCommit(branchCommit);
+            String headPath = fileManager.getHeadFilePath();
             FileManager.writeToFile(headPath, branchName, false);
         } catch (NoSuchFileException e) {
             throw new NoSuchBranchException(null);
@@ -97,54 +99,37 @@ public class RepoManager {
 
     /**
      * When creating the main branch for the first time
-     * the process is slightly different than just creating a new branch.
+     * the process is slightly different from just creating a new branch.
      * The main branch at first doesn't have a previous commit to point to.
-     *
-     * @param repoPath
-     * @param primaryBranchName
      */
-    public int createHeadBranch(String repoPath, String primaryBranchName) {
-
+    public void createHeadBranch(String repoPath, String primaryBranchName) {
         // FIXME: duplicate code with createBranch
-        int resCode = 0;
 
-        if (!FileManager.isValidPath(repoPath)) return ErrorCodes.ERROR_INVALID_PATH;
+        if (!FileManager.isValidPath(repoPath)) return;
 
-        String branchesPath = FileManager.getBranchesPath(repoPath);
+        String branchesPath = fileManager.getBranchesDirPath();
         String branchPath = branchesPath + primaryBranchName;
 
-        if (new File(branchPath).isFile()) return ErrorCodes.ERROR_EXISTING_BRANCH;
+        if (new File(branchPath).isFile()) return;
 
         try {
             Files.createFile(Paths.get(branchPath));
-            resCode = 0;
         } catch (IOException e) {
             e.printStackTrace();
-            resCode = ErrorCodes.ERROR_UNKNOWN;
         }
-
-        return resCode;
     }
 
-    /**
-     * @param branchName
-     * @return Result code. Potential errors:
-     * (*) Illegal Branch Name
-     * (*) Invalid Path
-     * (*) Existing Branch
-     * (*) Unknown
-     */
     public void createBranch(String branchName) throws RepoNotSetException, IllegalNameException, ExistingBranchException, UnknownError {
-        checkAndThrowSetRepo();
+        checkAndThrowUnsetRepo();
         if (branchName.contains(" ")) throw new IllegalNameException("Name cannot contain spaces.");
 
-        String branchPath = FileManager.getBranchesPath(this.repoPath) + branchName;
+        String branchPath = fileManager.getBranchesDirPath() + branchName;
         if (new File(branchPath).isFile()) throw new ExistingBranchException(null);
 
         try {
             Files.createFile(Paths.get(branchPath));
-            String headBranchName = FileManager.getHeadBranchName(repoPath);
-            String headBranchCommitSha1 = FileManager.getBranchSha1(repoPath, headBranchName);
+            String headBranchName = fileManager.getHeadBranchName();
+            String headBranchCommitSha1 = fileManager.getBranchSha1(headBranchName);
             FileManager.writeToFile(branchPath, headBranchCommitSha1, false);
         } catch (IOException e) {
             e.printStackTrace();
@@ -153,27 +138,16 @@ public class RepoManager {
     }
 
     public void commit(String creator, String msg) throws RepoNotSetException, UnknownError {
-        checkAndThrowSetRepo();
-
-        /**
-         * SCAN WC:
-         *      Scan all WC files and compare them to previous commit.
-         *      Previous commit is pointed to via HEAD file.
-         *          -   Go to head file.
-         *          -   Read branch name in head file.
-         *          -   Find branch file by its name.
-         *          -   Read branch file SHA1 content (commit).
-         *          -   Find commit file.
-         *          -   'Open' commit file and unfold its tree.
-         *
-         */
+        checkAndThrowUnsetRepo();
 
         try {
-            TreeNode wcRoot = WorkingCopy.getWCTree(repoPath);
-            Commit commit = createCommitData(wcRoot, creator, msg);
-            Collection<RepoFile> changedFiles = getChangedFiles(wcRoot);
+            TreeNode repoFilesRoot = workingCopy.getRepoFileTree();
+            Commit commit = createCommitData(repoFilesRoot, creator, msg);
+
+            // Collection<RepoFile> changedFiles = getChangedFiles(repoFilesRoot);
+            Collection<RepoFile> changedFiles = getWorkingCopy();
             zip(commit, changedFiles, repoPath);
-            FileManager.advanceHeadBranch(repoPath, commit.getSha1());
+            fileManager.advanceHeadBranch(commit.getSha1());
         } catch (Exception e) {
             e.printStackTrace();
             throw new UnknownError();
@@ -181,7 +155,7 @@ public class RepoManager {
     }
 
     private void zip(Commit commit, Collection<RepoFile> changedFiles, String mainDir) {
-        String objectsDirPath = FileManager.getObjectsPath(mainDir);
+        String objectsDirPath = fileManager.getObjectsDirPath();
         String sha1 = commit.getSha1();
         String commitContent = commit.toString();
         String commitZipPath = objectsDirPath + File.separator + sha1 + ".zip";
@@ -196,31 +170,6 @@ public class RepoManager {
             FileManager.zip(zipPath, fileName, content);
         }
     }
-
-    private Collection<RepoFile> getChangedFiles(TreeNode wcRoot) {
-        Collection<RepoFile> changedFiles = new LinkedList<>();
-
-        // TODO:
-        // Unfold the previous file tree from the last commit
-        // Compare items
-        // Add items that have changed to the list
-
-        // FIXME quick and dirty
-        // This just adds the whole wcRoot to the changed files
-        addToList(wcRoot, changedFiles);
-
-        return changedFiles;
-    }
-
-    private void addToList(TreeNode treeNode, Collection<RepoFile> changedFiles) {
-        RepoFile repoFile = treeNode.getRepoFile();
-        changedFiles.add(repoFile);
-
-        for (TreeNode childNode : treeNode.getChildren()) {
-            addToList(childNode, changedFiles);
-        }
-    }
-
 
     private Commit createCommitData(TreeNode wcRoot, String creator, String msg) {
         Commit commit = new Commit();
@@ -245,9 +194,197 @@ public class RepoManager {
 
     public String getActiveBranch() {
         try {
-            return FileManager.getHeadBranchName(repoPath);
+            return fileManager.getHeadBranchName();
         } catch (NoSuchFileException e) {
             return null;
         }
     }
+
+
+    /*****************************************************
+     ******************* TREE METHODS ********************
+     *****************************************************/
+
+    private TreeNode getPrevCommitFileTree() {
+        TreeNode root;
+
+        String headBranchCommitSha1 = fileManager.getHeadBranchCommitSha1();
+        if (headBranchCommitSha1 == null || headBranchCommitSha1.isEmpty()) {
+            root = workingCopy.getRepoFileTree();
+        } else {
+            root = getCommitFileTree(headBranchCommitSha1);
+        }
+
+        return root;
+    }
+
+    /**
+     * This function receives the SHA1 of a certain commit and returns the file tree
+     * pointed at by this commit.
+     *
+     * @param commitSha1
+     * @return
+     */
+    private TreeNode getCommitFileTree(String commitSha1) {
+        Commit commit = fileManager.getCommit(commitSha1);
+        MetaData metaData = new MetaData();
+        metaData.setId(commit.getMainDirSha1());
+        metaData.setFileType(RepoFile.FileType.FOLDER);
+
+        return fileManager.getFileTree(metaData);
+    }
+
+    /**
+     * Returns the tree of all the files in the repository.
+     *
+     * @return null if no repository is set.
+     */
+    public TreeNode getRepoFileTree() {
+        return workingCopy.getRepoFileTree();
+    }
+
+    /**
+     * Returns all the changed files in the working copy.
+     * (*) New files.
+     * (*) Modified files.
+     * (*) Deleted files.
+     *
+     * @return
+     */
+    public Collection<RepoFile> getWorkingCopy() {
+        TreeNode repoFilesRoot = workingCopy.getRepoFileTree();
+        String lastCommitSha1 = fileManager.getHeadBranchCommitSha1();
+        Collection<RepoFile> changedFiles = new ArrayList<>();
+
+        if (lastCommitSha1 == null || lastCommitSha1.isEmpty()) {
+            changedFiles = getFilesFromTree(repoFilesRoot);
+
+            return changedFiles;
+        }
+
+        TreeNode prevCommitRoot = getPrevCommitFileTree();
+
+        changedFiles = getChangedFiles(prevCommitRoot, getRepoFileTree());
+
+        return changedFiles;
+    }
+
+    /**
+     * Returns all the files that have been changed since last commit.
+     *
+     * @return
+     */
+    private Collection<RepoFile> getChangedFiles(TreeNode prevCommitFilesRoot, TreeNode repoFilesRoot) {
+        Collection<RepoFile> repoFiles = getFilesFromTree(repoFilesRoot);
+
+        if (prevCommitFilesRoot == null) {
+            return repoFiles;
+        }
+
+        Collection<RepoFile> changedFiles = new ArrayList<>();
+        Collection<RepoFile> prevCommitFiles = getFilesFromTree(prevCommitFilesRoot);
+
+        Collection<RepoFile> deletedFiles = getDeletedFiles(prevCommitFiles, repoFiles);
+        Collection<RepoFile> modifiedFiles = getModifiedFiles(prevCommitFiles, repoFiles);
+        Collection<RepoFile> newFiles = getNewFiles(prevCommitFiles, repoFiles);
+
+        changedFiles.addAll(deletedFiles);
+        changedFiles.addAll(modifiedFiles);
+        changedFiles.addAll(newFiles);
+
+        return changedFiles;
+    }
+
+    private Collection<RepoFile> getNewFiles(Collection<RepoFile> oldList, Collection<RepoFile> newList) {
+        Collection<RepoFile> newFiles = new ArrayList<>();
+        HashMap<String, RepoFile> name2OldFile = new HashMap<>();
+
+        for (RepoFile oldFile :
+                oldList) {
+            name2OldFile.put(oldFile.getName(), oldFile);
+        }
+
+        // TODO: functional programming with filters?
+        for (RepoFile newFile :
+                newList) {
+            if (!name2OldFile.containsKey(newFile.getName())) { // TODO: find better identifier, names can be changed
+                newFile.setChangeType(RepoFile.ChangeType.NEW);
+                newFiles.add(newFile);
+            }
+        }
+
+        return newFiles;
+    }
+
+    private Collection<RepoFile> getModifiedFiles(Collection<RepoFile> oldList, Collection<RepoFile> newList) {
+        Collection<RepoFile> modifiedFiles = new ArrayList<>();
+        HashMap<String, RepoFile> name2NewFile = new HashMap<>();
+
+        for (RepoFile newFile :
+                newList) {
+            name2NewFile.put(newFile.getName(), newFile);
+        }
+
+        // TODO: functional programming with filters?
+        for (RepoFile oldFile :
+                oldList) {
+            RepoFile newFile = name2NewFile.get(oldFile.getName());
+
+            if (newFile == null) continue;
+
+            if (!newFile.getId().equals(oldFile.getId())) {
+                newFile.setChangeType(RepoFile.ChangeType.MODIFIED);
+                modifiedFiles.add(newFile);
+            }
+        }
+
+        return modifiedFiles;
+    }
+
+    /**
+     * Returns a collection of all the files that existed in oldList and no longer do in newList.
+     *
+     * @return
+     */
+    private Collection<RepoFile> getDeletedFiles(Collection<RepoFile> oldList, Collection<RepoFile> newList) {
+        Collection<RepoFile> deletedFiles = new ArrayList<>();
+        HashMap<String, RepoFile> name2NewFile = new HashMap<>();
+
+        for (RepoFile newFile :
+                newList) {
+            name2NewFile.put(newFile.getName(), newFile);
+        }
+
+        // TODO: functional programming with filters?
+        for (RepoFile oldFile :
+                oldList) {
+            if (!name2NewFile.containsKey(oldFile.getName())) { // TODO: find a better way to search, name alone isn't the best
+                oldFile.setChangeType(RepoFile.ChangeType.DELETED);
+                deletedFiles.add(oldFile);
+            }
+        }
+
+        return deletedFiles;
+    }
+
+    private Collection<RepoFile> getFilesFromTree(TreeNode root) {
+        if (root == null) return null;
+
+        Collection<RepoFile> fileCollection = new ArrayList<>();
+        addFilesToList(root, fileCollection);
+
+        return fileCollection;
+    }
+
+    private void addFilesToList(TreeNode root, Collection<RepoFile> fileCollection) {
+        if (root == null) return;
+
+        fileCollection.add(root.getRepoFile());
+
+        for (TreeNode childNode :
+                root.getChildren()) {
+            addFilesToList(childNode, fileCollection);
+        }
+    }
 }
+

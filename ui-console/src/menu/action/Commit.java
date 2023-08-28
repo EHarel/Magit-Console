@@ -15,6 +15,7 @@ public class Commit implements DoesAction {
 
         String resMsg;
         try {
+            RepoAPI.getWorkingCopy();
             RepoAPI.commit(creator, commitMsg);
             resMsg = "Commit successful.";
         } catch (RepoNotSetException e) {

@@ -1,6 +1,5 @@
-package DataObjects;
-
-// import org.apache.commons.codec.digest.DigestUtils;
+package DataObjects;// import org.apache.commons.codec.digest.DigestUtils;
+import dto.files.RepoFile;
 import utils.Utils;
 
 import java.io.Serializable;
@@ -19,7 +18,7 @@ public class Commit implements Serializable {
 
     // FIXME: this is quick and dirty! Very hard to maintain. Improve.
     /**
-     * Creates a commit from the string used to describe a Commit saved as a file.
+     * Creates a commit from the string used to describe a DataObjects.Commit saved as a file.
      * @param fileStr
      */
     public Commit(String fileStr) {
@@ -29,7 +28,7 @@ public class Commit implements Serializable {
         This seems very risky. Might want a better way to do it.
          */
 
-        String[] fields = fileStr.split(FileData.delimeter);
+        String[] fields = fileStr.split(RepoFile.delimiter);
         int i = 0;
         this.mainDirSha1 = fields[i++];
         this.mainAncestorSha1 = fields[i++];
@@ -99,19 +98,19 @@ public class Commit implements Serializable {
         StringBuilder sb = new StringBuilder();
 
         sb.append(mainDirSha1);
-        sb.append(FileData.delimeter);
+        sb.append(RepoFile.delimiter);
 
         sb.append(mainAncestorSha1);
-        sb.append(FileData.delimeter);
+        sb.append(RepoFile.delimiter);
 
         sb.append(secondaryAncestorSha1);
-        sb.append(FileData.delimeter);
+        sb.append(RepoFile.delimiter);
 
         sb.append(msg);
-        sb.append(FileData.delimeter);
+        sb.append(RepoFile.delimiter);
 
         sb.append(date);
-        sb.append(FileData.delimeter);
+        sb.append(RepoFile.delimiter);
 
         sb.append(creator);
 

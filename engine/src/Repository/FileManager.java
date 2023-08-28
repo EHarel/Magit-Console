@@ -1,7 +1,11 @@
 package Repository;
 
 import DataObjects.Commit;
-import DataObjects.files.RepoFile;
+import dto.TreeNode;
+import dto.files.Blob;
+import dto.files.Folder;
+import dto.files.MetaData;
+import dto.files.RepoFile;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -22,6 +26,20 @@ public class FileManager {
     public static final String BRANCHES_DIR = "branches";
     public static final String OBJECTS_DIR = "objects";
     public static final String HEAD_FILE = "HEAD";
+    public static final String PRIMARY_BRANCH = "main";
+
+
+
+    private String repoPath;
+
+
+    /**
+     * Note: the checks for path validity occur before calling this function.
+     * @param newRepoPath
+     */
+    public void setRepoPath(String newRepoPath) {
+        this.repoPath = newRepoPath;
+    }
 
     public static boolean isValidPath(String path) {
         if (path == null || path.trim().isEmpty()) {
@@ -119,14 +137,10 @@ public class FileManager {
     }
 
     /**
-     * @param repoPath
      * @return the name of the branch as saved in the HEAD file.
      */
-    public static String getHeadBranchName(String repoPath) throws NoSuchFileException {
-        // TODO: check path validity
-        if (repoPath == null) return null;
-
-        String headFilePath = FileManager.getHeadPath(repoPath);
+    public String getHeadBranchName() throws NoSuchFileException {
+        String headFilePath = getHeadFilePath();
 
         return getFileContent(headFilePath);
     }
@@ -160,17 +174,18 @@ public class FileManager {
     /**
      * This file returns the SHA1 of the branch file, which is the last commit of the branch.
      *
-     * @param mainDir
      * @param branchName
      */
-    public static String getBranchSha1(String mainDir, String branchName) throws NoSuchFileException {
-        String branchesPath = FileManager.getBranchesPath(mainDir);
+    public String getBranchSha1(String branchName) throws NoSuchFileException {
+        String branchesPath = getBranchesDirPath();
         String branchPath = branchesPath + branchName;
 
         return getFileContent(branchPath);
     }
 
     public static void writeToFile(String filePath, String content, boolean append) {
+        if (filePath == null) return;
+
         try {
             FileWriter writerObj = new FileWriter(filePath, append);
             writerObj.write(content);
@@ -210,10 +225,10 @@ public class FileManager {
         file.delete();
     }
 
-    public static Commit getCommit(String mainDir, String commitSha1) {
-        String objPath = FileManager.getObjectsPath(mainDir);
+    public Commit getCommit(String commitSha1) {
+        String objPath = getObjectsDirPath();
         String commitPath = objPath + commitSha1 + ".zip";
-        String commitString = FileManager.readZipContent(commitPath);
+        String commitString = readZipContent(commitPath);
 
         return new Commit(commitString);
     }
@@ -221,7 +236,7 @@ public class FileManager {
     /**
      * Returns the content of a single zipped file. returns null if path is invalid or file is a directory.
      */
-    private static String readZipContent(String filePath) {
+    private String readZipContent(String filePath) {
         if (filePath == null) return null;
 
         filePath = checkAndAddZipSuffix(filePath);
@@ -251,17 +266,16 @@ public class FileManager {
     /**
      * This method unfolds a whole commit in the working copy.
      * It does not delete the content of the working copy. That occurs elsewhere.
-     * @param mainDirPath
      * @param branchCommit
      */
-    public static void unfoldCommit(String mainDirPath, Commit branchCommit) {
+    public void unfoldCommit(Commit branchCommit) {
         /*
         We don't need the whole object created for unfolding the commit,
         Just the name of the file, its SHA1 to find the zipped object, and its type.
          */
         String mainDirSha1 = branchCommit.getMainDirSha1();
-        String objectsPath = FileManager.getObjectsPath(mainDirPath);
-        unzipIntoDir(objectsPath, mainDirPath, mainDirSha1);
+        String objectsPath = getObjectsDirPath();
+        unzipIntoDir(objectsPath, repoPath, mainDirSha1);
     }
 
     /**
@@ -270,9 +284,9 @@ public class FileManager {
      * @param destDirPath Path to the directory where all files will be unzipped.
      * @param dirSha1 The name of the zipped folder (SHA1) that holds the contents of the directory.
      */
-    private static void unzipIntoDir(String objectsPath, String destDirPath, String dirSha1) {
+    private void unzipIntoDir(String objectsPath, String destDirPath, String dirSha1) {
         String dirObjectPath = objectsPath + dirSha1;
-        String mainDirString = FileManager.readZipContent(dirObjectPath);
+        String mainDirString = readZipContent(dirObjectPath);
         String[] dirFiles = mainDirString.split("\n");
 
         for (String fileString : dirFiles) {
@@ -323,10 +337,19 @@ public class FileManager {
         return path + addition;
     }
 
-    public static void advanceHeadBranch(String mainDirPath, String commitSha1) throws NoSuchFileException {
-        String headBranchName = FileManager.getHeadBranchName(mainDirPath);
-        String filePath = FileManager.getBranchesPath(mainDirPath) + File.separator + headBranchName;
+    public void advanceHeadBranch(String commitSha1) {
+        String filePath = getHeadBranchFilePath();
         FileManager.writeToFile(filePath, commitSha1, false);
+    }
+
+    public String getHeadBranchFilePath() {
+        String filePath = null;
+        try {
+            String headBranchName = headBranchName = getHeadBranchName();
+            filePath = getBranchesDirPath() + File.separator + headBranchName;
+        } catch (NoSuchFileException ignore) { }
+
+        return filePath;
     }
 
 
@@ -335,30 +358,92 @@ public class FileManager {
                         BASIC PATH GETTERS
      *****************************************************/
 
-    public static String getMagitPath(String mainDirPath) {
-        return mainDirPath +
+    public String getMagitPath() {
+        return repoPath +
                 File.separator +
                 MAGIT_DIR +
                 File.separator;
     }
 
-    public static String getBranchesPath(String mainDirPath) {
-        return getMagitPath(mainDirPath) +
+    public String getBranchesDirPath() {
+        return getMagitPath() +
                 File.separator +
                 BRANCHES_DIR +
                 File.separator;
     }
 
-    public static String getObjectsPath(String mainDirPath) {
-        return getMagitPath(mainDirPath) +
+    private String getObjectData(String objectName) {
+        String data = readZipContent(getObjectPath(objectName));
+
+        return data;
+    }
+
+    public String getObjectPath(String objectName) {
+        return appendToPath(getObjectsDirPath(), objectName);
+    }
+
+
+    public String getObjectsDirPath() {
+        return getMagitPath() +
                 File.separator +
                 OBJECTS_DIR +
                 File.separator;
     }
 
-    public static String getHeadPath(String mainDirPath) {
-        return FileManager.getBranchesPath(mainDirPath) +
+    public String getHeadFilePath() {
+        return getBranchesDirPath() +
                 File.separator +
                 HEAD_FILE;
+    }
+
+    public Commit getHeadBranchCommit() {
+        return getCommit(getHeadBranchCommitSha1());
+    }
+
+    public String getHeadBranchCommitSha1() {
+        String headCommitSha1 = null;
+        try {
+            String headBranchPath = getHeadBranchFilePath();
+            headCommitSha1 = getFileContent(headBranchPath);
+        } catch (NoSuchFileException ignore) {
+            // TODO: better way to handle?
+        }
+
+        return headCommitSha1;
+    }
+
+
+
+
+
+    /*****************************************************
+     ******************* TREE METHODS ********************
+     *****************************************************/
+
+    public TreeNode getFileTree(MetaData metaData) {
+        TreeNode root = new TreeNode();
+        RepoFile resFile;
+
+        if (metaData.getFileType() == RepoFile.FileType.BLOB) {
+            String blobPath = getObjectPath(metaData.getName());
+            String content = readZipContent(blobPath);
+            resFile = new Blob(content, metaData);
+        } else {
+            Folder folder = new Folder(metaData);
+            String folderData = getObjectData(metaData.getId());
+            String[] lines = folderData.split(System.lineSeparator());
+            for (String line :
+                    lines) {
+                MetaData childMetaData = new MetaData(line);
+                TreeNode childNode = getFileTree(childMetaData);
+                root.addChildAndSetParent(childNode);
+            }
+
+            resFile = folder;
+        }
+
+        root.setFile(resFile);
+
+        return root;
     }
 }

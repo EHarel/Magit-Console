@@ -1,10 +1,9 @@
 package Repository;
 
-import DataObjects.FileData;
-import DataObjects.TreeNode;
-import DataObjects.files.Blob;
-import DataObjects.files.Folder;
-import DataObjects.files.RepoFile;
+import dto.TreeNode;
+import dto.files.Blob;
+import dto.files.Folder;
+import dto.files.RepoFile;
 /// import org.apache.commons.codec.digest.DigestUtils;
 
 import java.io.File;
@@ -13,34 +12,25 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collection;
 import java.util.stream.Stream;
 
 public class WorkingCopy {
+    private String repoPath;
 
-    // TODO: delete eventually, a method made for development
-    public static void showWCTree(String wcPath) {
-        if (wcPath == null) {
-            System.out.println("No repository set.");
-            return;
-        }
+    /**
+     * Creates the file tree of the repository in its current state.
+     * All files are included, regardless of modification state.
+     * @return
+     */
+    public TreeNode getRepoFileTree() {
+        if (repoPath == null) return null;
 
-        TreeNode root = getTreeRec(wcPath);
-
-        printTree(root);
+        return getRepoFileTreeRec(repoPath);
     }
 
-    public static TreeNode getWCTree(String wcPath) {
-        TreeNode root = getTreeRec(wcPath);
-
-        return root;
-    }
-
-    private static TreeNode getTreeRec(String filePath) {
+    private TreeNode getRepoFileTreeRec(String filePath) {
         TreeNode tn = new TreeNode();
-//        FileData fileData = new FileData();
         RepoFile fileData = null;
-
         File file = new File(filePath);
 
         if (file.isFile()) {
@@ -49,9 +39,9 @@ public class WorkingCopy {
             for (File childFile : file.listFiles()) {
                 if (childFile.isHidden() || childFile.getName().equals(FileManager.MAGIT_DIR)) continue;
 
-                TreeNode childNode = getTreeRec(childFile.getPath()); // Recursive call
+                TreeNode childNode = getRepoFileTreeRec(childFile.getPath()); // Recursive call
                 childNode.setParent(tn);
-                tn.addChild(childNode);
+                tn.addChildAndSetParent(childNode);
             }
 
             fileData = getFolderData(tn, file);
@@ -82,7 +72,7 @@ public class WorkingCopy {
 
         for (TreeNode tn : treeNode.getChildren()) {
             // String fileStr = tn.getRepoFile().toString();
-            String fileStr = tn.getRepoFile().getMetaData();
+            String fileStr = tn.getRepoFile().getMetaDataContent();
 
             dataBuilder.append(fileStr).append(System.lineSeparator());
         }
@@ -112,28 +102,11 @@ public class WorkingCopy {
         return treeFileData;
     }
 
-    private static void printTree(TreeNode root) {
-        int level = 0;
-
-        printTreeRec(root, level);
-    }
-
-    private static void printTreeRec(TreeNode root, int level) {
-        StringBuilder indent = new StringBuilder();
-        for (int i = 0; i < level; i++) {
-            for (int j = 0; j < 3; j++) {
-                indent.append(" ");
-            }
-        }
-
-        String input = indent + root.getRepoFile().getName() + " - " + root.getRepoFile().getFileType();
-        System.out.println(input);
-
-        Collection<TreeNode> children = root.getChildren();
-
-        for (TreeNode tn :
-                children) {
-            printTreeRec(tn, level + 1);
-        }
+    /**
+     * Changes the repository of the working copy. Note that the checks occur before calling this class.
+     * @param newRepoPath
+     */
+    public void setRepoPath(String newRepoPath) {
+        this.repoPath = newRepoPath;
     }
 }

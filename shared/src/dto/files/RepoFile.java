@@ -1,20 +1,39 @@
-package DataObjects.files;
+package dto.files;
 
 /**
  * Named RepoFile instead of just File to differentiate it from java.nio.file.Files.
  */
-public abstract class RepoFile {
+public class RepoFile {
+    public static final String delimiter = ",";
+
     public enum FileType {
         BLOB, FOLDER
     }
 
-    public static final String delimiter = ",";
+    public enum ChangeType {
+        NEW, MODIFIED, DELETED, UNDEFINED
+    }
+
+    public RepoFile() {}
+
+    protected MetaData metaData;
+
 
     protected String name;
     protected String id; // SHA1
     protected RepoFile.FileType fileType;
     protected String lastUpdater;
     protected String lastUpdateDate;
+
+    public ChangeType getChangeType() {
+        return changeType;
+    }
+
+    public void setChangeType(ChangeType changeType) {
+        this.changeType = changeType;
+    }
+
+    protected ChangeType changeType;
 
 
     /*********************************************************
@@ -35,9 +54,17 @@ public abstract class RepoFile {
     public String getLastUpdateDate() { return lastUpdateDate; }
     public void setLastUpdateDate(String lastUpdateDate) { this.lastUpdateDate = lastUpdateDate; }
 
-    public abstract String getContent();
+    public String getContent() {
+        return null;
+    }
 
-    public String getMetaData() {
+    /**
+     *
+     * @return A string of the data as it will be saved into the file system.
+     * Currently of the format:
+     *      [name],[sha1],[type],[user],[date]
+     */
+    public String getMetaDataContent() {
         String data =
                 name +
                         delimiter +

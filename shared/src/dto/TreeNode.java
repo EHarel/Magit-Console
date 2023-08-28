@@ -1,6 +1,6 @@
-package DataObjects;
+package dto;
 
-import DataObjects.files.RepoFile;
+import dto.files.RepoFile;
 
 import java.util.Collection;
 import java.util.LinkedList;
@@ -34,7 +34,12 @@ public class TreeNode {
         return children;
     }
 
-    public void addChild(TreeNode treeNode) {
+    /**
+     * Add the tree node as a child, and sets its parent to this.
+     * @param treeNode
+     */
+    public void addChildAndSetParent(TreeNode treeNode) {
         children.add(treeNode);
+        treeNode.setParent(this);
     }
 }
