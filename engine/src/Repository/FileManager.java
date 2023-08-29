@@ -420,22 +420,25 @@ public class FileManager {
      ******************* TREE METHODS ********************
      *****************************************************/
 
-    public TreeNode getFileTree(MetaData metaData) {
+    public TreeNode getFileTree(MetaData metaData, String currFullPath) {
         TreeNode root = new TreeNode();
         RepoFile resFile;
 
         if (metaData.getFileType() == RepoFile.FileType.BLOB) {
-            String blobPath = getObjectPath(metaData.getName());
+            String blobPath = getObjectPath(metaData.getId());
             String content = readZipContent(blobPath);
             resFile = new Blob(content, metaData);
+            String fullPath = appendToPath(currFullPath, resFile.getName());
+            resFile.setFullPath(fullPath);
         } else {
             Folder folder = new Folder(metaData);
             String folderData = getObjectData(metaData.getId());
             String[] lines = folderData.split(System.lineSeparator());
+            String updatedCurrPath = appendToPath(currFullPath, metaData.getName());
             for (String line :
                     lines) {
                 MetaData childMetaData = new MetaData(line);
-                TreeNode childNode = getFileTree(childMetaData);
+                TreeNode childNode = getFileTree(childMetaData, updatedCurrPath);
                 root.addChildAndSetParent(childNode);
             }
 

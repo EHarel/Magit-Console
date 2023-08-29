@@ -10,7 +10,7 @@ public class Checkout implements DoesAction {
     @Override
     public void DoAction() {
         String msg = "Enter branch name:";
-        String branchName = Utils.getInput(msg, false);
+        String branchName = menu.Utils.getInput(msg, false, true);
         if (branchName == null) return;
 
         String resMsg;

@@ -61,4 +61,19 @@ public class MetaData {
     public void setLastUpdateDate(String lastUpdateDate) {
         this.lastUpdateDate = lastUpdateDate;
     }
+
+    public String toString() {
+        String data =
+                name +
+                        RepoFile.delimiter +
+                        id +
+                        RepoFile.delimiter +
+                        fileType +
+                        RepoFile.delimiter +
+                        lastUpdater +
+                        RepoFile.delimiter +
+                        lastUpdateDate;
+
+        return data;
+    }
 }

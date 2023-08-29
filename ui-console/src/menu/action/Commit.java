@@ -1,21 +1,27 @@
 package menu.action;
 
+import dto.files.RepoFile;
 import errors.exceptions.RepoNotSetException;
 import magit.RepoAPI;
 import menu.DoesAction;
 import menu.builder.MainMenu;
-import menu.utils.Utils;
+
+import java.util.Collection;
 
 public class Commit implements DoesAction {
     @Override
     public void DoAction() {
-        String creator = getCreatorName();
-        String commitMsg = getCommitMsg();
-        if (commitMsg == null) return;
-
         String resMsg;
         try {
-            RepoAPI.getWorkingCopy();
+            String creator = getCreatorName();
+
+            System.out.println("These are the open changes:");
+
+            Collection<RepoFile> changedFiles = RepoAPI.getWorkingCopy();
+
+            String commitMsg = getCommitMsg();
+            if (commitMsg == null) return;
+
             RepoAPI.commit(creator, commitMsg);
             resMsg = "Commit successful.";
         } catch (RepoNotSetException e) {
@@ -29,7 +35,7 @@ public class Commit implements DoesAction {
     private String getCommitMsg() {
         String msg = "Enter message for commit:";
 
-        return Utils.getInput(msg, false);
+        return menu.Utils.getInput(msg, false, false);
     }
 
     private String getCreatorName() {

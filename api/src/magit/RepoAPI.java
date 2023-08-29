@@ -53,7 +53,11 @@ public abstract class RepoAPI {
      *      (*) Modified files.
      *      (*) Deleted files.
      */
-    public static Collection<RepoFile> getWorkingCopy() {
+    public static Collection<RepoFile> getWorkingCopy() throws RepoNotSetException {
         return repoManager.getWorkingCopy();
+    }
+
+    public static TreeNode getLastCommitFileTree() throws RepoNotSetException {
+        return repoManager.getLastCommitFileTree();
     }
 }

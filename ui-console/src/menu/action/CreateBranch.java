@@ -3,13 +3,12 @@ package menu.action;
 import errors.exceptions.*;
 import magit.RepoAPI;
 import menu.DoesAction;
-import menu.utils.Utils;
 
 public class CreateBranch implements DoesAction {
     @Override
     public void DoAction() {
         String msg = "Enter branch name:";
-        String branchName = Utils.getInput(msg, false);
+        String branchName = menu.Utils.getInput(msg, false, true);
         if (branchName == null) return;
 
         String resMsg;

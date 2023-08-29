@@ -4,13 +4,12 @@ import errors.exceptions.InvalidPathException;
 import errors.exceptions.NoSuchRepoException;
 import magit.RepoAPI;
 import menu.DoesAction;
-import menu.utils.Utils;
 
 public class LoadRepository implements DoesAction {
     @Override
     public void DoAction() {
         String msg = "Enter repository path:";
-        String repoPath = Utils.getInput(msg, false);
+        String repoPath = menu.Utils.getInput(msg, false, true);
         if (repoPath == null) return;
 
         String resMsg;

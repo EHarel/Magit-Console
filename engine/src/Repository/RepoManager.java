@@ -19,8 +19,8 @@ import java.util.HashMap;
 
 public class RepoManager {
     private String repoPath;
-    private WorkingCopy workingCopy;
-    private FileManager fileManager;
+    private final WorkingCopy workingCopy;
+    private final FileManager fileManager;
 
     public RepoManager() {
         repoPath = null;
@@ -87,13 +87,13 @@ public class RepoManager {
 
         Path p1 = Files.createDirectories(Paths.get(fullPath));
 
-        String objPath = FileManager.appendToPath(fullPath, "objects");
+        String objPath = FileManager.appendToPath(fullPath, FileManager.OBJECTS_DIR);
         Path p2 = Files.createDirectories(Paths.get(objPath));
 
-        String branchesPath = FileManager.appendToPath(fullPath, "branches");
+        String branchesPath = FileManager.appendToPath(fullPath, FileManager.BRANCHES_DIR);
         Path p3 = Files.createDirectories(Paths.get(branchesPath));
 
-        String headPath = FileManager.appendToPath(branchesPath, "HEAD");
+        String headPath = FileManager.appendToPath(branchesPath, FileManager.HEAD_FILE);
         Path p4 = Files.createFile(Paths.get(headPath));
     }
 
@@ -144,7 +144,6 @@ public class RepoManager {
             TreeNode repoFilesRoot = workingCopy.getRepoFileTree();
             Commit commit = createCommitData(repoFilesRoot, creator, msg);
 
-            // Collection<RepoFile> changedFiles = getChangedFiles(repoFilesRoot);
             Collection<RepoFile> changedFiles = getWorkingCopy();
             zip(commit, changedFiles, repoPath);
             fileManager.advanceHeadBranch(commit.getSha1());
@@ -162,9 +161,9 @@ public class RepoManager {
         FileManager.zip(commitZipPath, sha1, commitContent);
 
         for (RepoFile fd : changedFiles) {
-            String fileSha1 = fd.getId();
+            String fileSha1 = fd.getMetaData().getId();
             String zipName = fileSha1 + ".zip";
-            String fileName = fd.getName();
+            String fileName = fd.getMetaData().getName();
             String content = fd.getContent();
             String zipPath = objectsDirPath + File.separator + zipName;
             FileManager.zip(zipPath, fileName, content);
@@ -174,7 +173,7 @@ public class RepoManager {
     private Commit createCommitData(TreeNode wcRoot, String creator, String msg) {
         Commit commit = new Commit();
 
-        commit.setMainDirSha1(wcRoot.getRepoFile().getId());
+        commit.setMainDirSha1(wcRoot.getRepoFile().getMetaData().getId());
 
         // TODO: commit.setMainAncestorSha1();
         commit.setMainAncestorSha1("Temp primary ancestor");
@@ -205,7 +204,9 @@ public class RepoManager {
      ******************* TREE METHODS ********************
      *****************************************************/
 
-    private TreeNode getPrevCommitFileTree() {
+    private TreeNode getPrevCommitFileTree() throws RepoNotSetException {
+        checkAndThrowUnsetRepo();
+
         TreeNode root;
 
         String headBranchCommitSha1 = fileManager.getHeadBranchCommitSha1();
@@ -230,8 +231,18 @@ public class RepoManager {
         MetaData metaData = new MetaData();
         metaData.setId(commit.getMainDirSha1());
         metaData.setFileType(RepoFile.FileType.FOLDER);
+        metaData.setName(getRepoName());
+        TreeNode root = fileManager.getFileTree(metaData, repoPath);
 
-        return fileManager.getFileTree(metaData);
+        return root;
+    }
+
+    private String getRepoName() {
+        if (this.repoPath == null) return null;
+
+        String[] str = repoPath.split(String.valueOf(File.separatorChar));
+
+        return str[str.length-1];
     }
 
     /**
@@ -251,7 +262,9 @@ public class RepoManager {
      *
      * @return
      */
-    public Collection<RepoFile> getWorkingCopy() {
+    public Collection<RepoFile> getWorkingCopy() throws RepoNotSetException {
+        checkAndThrowUnsetRepo();
+
         TreeNode repoFilesRoot = workingCopy.getRepoFileTree();
         String lastCommitSha1 = fileManager.getHeadBranchCommitSha1();
         Collection<RepoFile> changedFiles = new ArrayList<>();
@@ -301,14 +314,14 @@ public class RepoManager {
 
         for (RepoFile oldFile :
                 oldList) {
-            name2OldFile.put(oldFile.getName(), oldFile);
+            name2OldFile.put(oldFile.getMetaData().getName(), oldFile);
         }
 
         // TODO: functional programming with filters?
         for (RepoFile newFile :
                 newList) {
-            if (!name2OldFile.containsKey(newFile.getName())) { // TODO: find better identifier, names can be changed
-                newFile.setChangeType(RepoFile.ChangeType.NEW);
+            if (!name2OldFile.containsKey(newFile.getMetaData().getName())) { // TODO: find better identifier, names can be changed
+                newFile.setChangeType(RepoFile.ChangeType.New);
                 newFiles.add(newFile);
             }
         }
@@ -322,18 +335,18 @@ public class RepoManager {
 
         for (RepoFile newFile :
                 newList) {
-            name2NewFile.put(newFile.getName(), newFile);
+            name2NewFile.put(newFile.getMetaData().getName(), newFile);
         }
 
         // TODO: functional programming with filters?
         for (RepoFile oldFile :
                 oldList) {
-            RepoFile newFile = name2NewFile.get(oldFile.getName());
+            RepoFile newFile = name2NewFile.get(oldFile.getMetaData().getName());
 
             if (newFile == null) continue;
 
-            if (!newFile.getId().equals(oldFile.getId())) {
-                newFile.setChangeType(RepoFile.ChangeType.MODIFIED);
+            if (!newFile.getMetaData().getId().equals(oldFile.getMetaData().getId())) {
+                newFile.setChangeType(RepoFile.ChangeType.Modified);
                 modifiedFiles.add(newFile);
             }
         }
@@ -352,14 +365,14 @@ public class RepoManager {
 
         for (RepoFile newFile :
                 newList) {
-            name2NewFile.put(newFile.getName(), newFile);
+            name2NewFile.put(newFile.getMetaData().getName(), newFile);
         }
 
         // TODO: functional programming with filters?
         for (RepoFile oldFile :
                 oldList) {
-            if (!name2NewFile.containsKey(oldFile.getName())) { // TODO: find a better way to search, name alone isn't the best
-                oldFile.setChangeType(RepoFile.ChangeType.DELETED);
+            if (!name2NewFile.containsKey(oldFile.getMetaData().getName())) { // TODO: find a better way to search, name alone isn't the best
+                oldFile.setChangeType(RepoFile.ChangeType.Deleted);
                 deletedFiles.add(oldFile);
             }
         }
@@ -385,6 +398,10 @@ public class RepoManager {
                 root.getChildren()) {
             addFilesToList(childNode, fileCollection);
         }
+    }
+
+    public TreeNode getLastCommitFileTree() throws RepoNotSetException {
+        return getPrevCommitFileTree();
     }
 }
 

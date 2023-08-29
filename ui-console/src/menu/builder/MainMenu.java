@@ -39,6 +39,7 @@ public class MainMenu {
         setMenu_ShowCurrCommitFiles();      // 4
         setMenu_ShowRepository();           // 5
         setMenu_ShowWCStatus();
+        setMenu_ShowLastCommit();
         setMenu_Commit();                   // 6
         setMenu_ShowBranches();             // 7
         setMenu_CreateBranch();             // 8
@@ -83,6 +84,11 @@ public class MainMenu {
     private void setMenu_ShowWCStatus() {
         String menuName = "Print working copy status";
         new MenuAction(menuName, mainMenu, new ShowWorkingCopy());
+    }
+
+    private void setMenu_ShowLastCommit() {
+        String menuName = "Show last commit files";
+        new MenuAction(menuName, mainMenu, new ShowLastCommitFileTree());
     }
 
     private void setMenu_Commit() {

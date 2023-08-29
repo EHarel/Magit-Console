@@ -3,7 +3,7 @@ package dto.files;
 /**
  * Named RepoFile instead of just File to differentiate it from java.nio.file.Files.
  */
-public class RepoFile {
+public abstract class RepoFile {
     public static final String delimiter = ",";
 
     public enum FileType {
@@ -11,19 +11,27 @@ public class RepoFile {
     }
 
     public enum ChangeType {
-        NEW, MODIFIED, DELETED, UNDEFINED
+        New, Modified, Deleted, Unchanged
     }
 
     public RepoFile() {}
 
     protected MetaData metaData;
+    protected ChangeType changeType;
+    protected String fullPath;
 
 
-    protected String name;
-    protected String id; // SHA1
-    protected RepoFile.FileType fileType;
-    protected String lastUpdater;
-    protected String lastUpdateDate;
+    /*********************************************************
+     * GETTERS AND SETTERS
+     *********************************************************/
+
+    public MetaData getMetaData() {
+        return metaData;
+    }
+
+    public void setMetaData(MetaData metaData) {
+        this.metaData = metaData;
+    }
 
     public ChangeType getChangeType() {
         return changeType;
@@ -33,49 +41,39 @@ public class RepoFile {
         this.changeType = changeType;
     }
 
-    protected ChangeType changeType;
+    public String getFullPath() {
+        return fullPath;
+    }
+
+    public void setFullPath(String fullPath) {
+        this.fullPath = fullPath;
+    }
 
 
-    /*********************************************************
-     * GETTERS AND SETTERS
-     *********************************************************/
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
 
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
 
-    public FileType getFileType() { return fileType; }
-    public void setFileType(FileType fileType) { this.fileType = fileType; }
+    public abstract String getContent();
 
-    public String getLastUpdater() { return lastUpdater; }
-    public void setLastUpdater(String lastUpdater) { this.lastUpdater = lastUpdater; }
+    public void setName(String newName) {
+        this.metaData.setName(newName);
+    }
 
-    public String getLastUpdateDate() { return lastUpdateDate; }
-    public void setLastUpdateDate(String lastUpdateDate) { this.lastUpdateDate = lastUpdateDate; }
+    public String getName() {
+        return this.metaData.getName();
+    }
 
-    public String getContent() {
-        return null;
+    public FileType getFileType() {
+        return this.metaData.getFileType();
     }
 
     /**
      *
      * @return A string of the data as it will be saved into the file system.
-     * Currently of the format:
+     * Current format is:
+     *
      *      [name],[sha1],[type],[user],[date]
      */
     public String getMetaDataContent() {
-        String data =
-                name +
-                        delimiter +
-                        id +
-                        delimiter +
-                        fileType +
-                        delimiter +
-                        lastUpdater +
-                        delimiter +
-                        lastUpdateDate;
-
-        return data;
+        return metaData.toString();
     }
 }

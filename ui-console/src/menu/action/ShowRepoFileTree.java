@@ -15,7 +15,7 @@ public class ShowRepoFileTree implements DoesAction {
             return;
         }
 
-        Utils.printFileTree(root);
+        Utils.printFileTree(root, false);
 
     }
 }

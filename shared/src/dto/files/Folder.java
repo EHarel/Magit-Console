@@ -31,7 +31,9 @@ public class Folder extends RepoFile {
     public void addFile(RepoFile file) {
         files.add(file);
         String data = this.getContent();
-        this.id = SharedUtils.getSha1(data);
+
+//        this.metaData.id = SharedUtils.getSha1(data);
+        this.metaData.setId(SharedUtils.getSha1(data));
     }
 
     @Override
@@ -44,7 +46,7 @@ public class Folder extends RepoFile {
 
         for (RepoFile rf : files) {
             String fileStr = rf.getMetaDataContent();
-            data.append(fileStr).append("\n");
+            data.append(fileStr).append(System.lineSeparator());
         }
 
         return data.toString();

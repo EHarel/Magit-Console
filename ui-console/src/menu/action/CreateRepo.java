@@ -6,9 +6,7 @@ import menu.DoesAction;
 import magit.RepoAPI;
 import menu.utils.Utils;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.Scanner;
 
 
 public class CreateRepo implements DoesAction {
@@ -18,7 +16,7 @@ public class CreateRepo implements DoesAction {
         boolean validInput = false;
         String pathStr = null;
         while (! validInput) {
-            pathStr = Utils.getInput(msg, false);
+            pathStr = menu.Utils.getInput(msg, false, true);
             if (pathStr == null) return;
 
             validInput = Utils.isValidFilePath(pathStr);
